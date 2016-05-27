@@ -9,7 +9,7 @@ m2 <- matrix(runif(60), ncol=6)                          # numeric matrix
 block_sizes1 <- c(12L, 20L, 50L, 15000L)
 block_sizes2 <- 2L * block_sizes1
 
-test_DelayedMatrix_delayed_Ops <- function()
+test_DelayedMatrix_Ops <- function()
 {
     test_delayed_Ops_on_matrix <- function(.Generic, m, M) {
         GENERIC <- match.fun(.Generic)

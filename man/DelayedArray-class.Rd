@@ -60,8 +60,8 @@ DelayedArray(x)  # constructor function
 
 \section{Details}{
   To \emph{realize} a DelayedArray object (i.e. to trigger execution of the
-  delayed operations that the object carries and turn the object back into
-  an ordinary array), call \code{as.array} on it. However this realizes the
+  delayed operations carried by the object and return the result as an
+  ordinary array), call \code{as.array} on it. However this realizes the
   object in memory and could require too much memory. Big DelayedArray
   objects are preferrably realized on disk e.g. by calling the
   \code{\link{HDF5Dataset}} constructor on it (other on-disk backends can be
@@ -101,6 +101,9 @@ DelayedArray(x)  # constructor function
     \item \link{DelayedArray-utils} for common operations on DelayedArray
           objects.
 
+    \item \link[HDF5Array]{cbind} in this package (\pkg{HDF5Array}) for
+          binding DelayedArray objects along their rows or columns.
+
     \item \link{setHDF5DumpFile} to control the location of automatically
           created HDF5 datasets.
 
@@ -123,7 +126,8 @@ b <- toto(a)
 head(b)
 
 B <- toto(A)  # very fast! (operations are delayed)
-B             # still 3 dimensions (subsetting never drops dimensions)
+B             # still 3 dimensions (subsetting a DelayedArray object
+              # never drops dimensions)
 B <- drop(B)
 B
 
