@@ -137,16 +137,10 @@ h5append <- function(data, filepath, name)
 ### A simple wrapper around rhdf5::h5createDataset()
 ###
 
-### A simple wrapper around rhdf5::h5createDataset().
 h5createDataset2 <- function(filepath, name, dim, maxdim=dim,
-                             type="double", H5type=NULL,
+                             type="double", H5type=NULL, size=NULL,
                              chunkdim=dim, level=6L)
 {
-    if (type == "character") {
-        size <- max(nchar(name, type="width"))
-    } else {
-        size <- NULL
-    }
     ## If h5createDataset() fails, it will leave an HDF5 file handle opened.
     ## Calling H5close() will close all opened HDF5 object handles.
     #on.exit(H5close())
