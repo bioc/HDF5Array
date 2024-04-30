@@ -1,3 +1,31 @@
+CHANGES IN VERSION 1.32.0
+-------------------------
+
+NEW FEATURES
+
+    o Some light refactoring of the HDF5 dump management utilities:
+      - All the settings controlled by the get/setHDF5Dump*() functions are
+        now formally treated as global options (i.e. they're stored in the
+        global .Options vector). The benefit is that the settings will always
+        get passed to the workers in the context of parallel evaluation, even
+        when using a parallel back-end like BiocParallel::SnowParam.
+        In other words, all the workers are now guaranteed to use the same
+        settings as the main R process.
+      - In addition, getHDF5DumpFile() was further modified to make sure that
+        it will generate unique "automatique dump files" across workers.
+
+SIGNIFICANT USER-VISIBLE CHANGES
+
+    o Change 'with.dimnames' default to TRUE (was FALSE) in writeHDF5Array().
+
+BUG FIXES
+
+    o Make sure that chunkdim(x) on a TENxRealizationSink,
+      CSC_H5SparseMatrixSeed, or CSR_H5SparseMatrixSeed object 'x'
+      **always** returns dimensions that are at most dim(x), even
+      when 'x' has 0 rows and/or columns.
+
+
 CHANGES IN VERSION 1.30.0
 -------------------------
 
