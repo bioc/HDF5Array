@@ -16,6 +16,7 @@ import(BiocGenerics)
 import(S4Vectors)
 import(IRanges)
 import(S4Arrays)
+import(SparseArray)
 import(DelayedArray)
 
 

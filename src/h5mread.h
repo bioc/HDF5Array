@@ -15,6 +15,7 @@ SEXP C_h5mread(
 	SEXP starts,
 	SEXP counts,
 	SEXP noreduce,
+	SEXP as_vector,
 	SEXP as_integer,
 	SEXP as_sparse,
 	SEXP method,

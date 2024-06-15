@@ -57,7 +57,7 @@ collapse_dims <- function(dim0, collapse_along)
                                        method=0L)
 {
     ans <- h5mread(filepath, name, starts, noreduce=noreduce,
-                   as.integer=as.integer, method=method)
+                   as.vector=FALSE, as.integer=as.integer, method=method)
     dim(ans) <- collapse_dims(dim(ans), collapse_along)
     ans
 }
@@ -91,7 +91,7 @@ h5mread_from_reshaped <- function(filepath, name, dim, starts, noreduce=FALSE,
     if (is.null(collapse_along)) {
         ## No reshaping.
         ans <- h5mread(filepath, name, starts, noreduce=noreduce,
-                       as.integer=as.integer, method=method)
+                       as.vector=FALSE, as.integer=as.integer, method=method)
         return(ans)
     }
     along1 <- collapse_along[[1L]]

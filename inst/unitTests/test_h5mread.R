@@ -1,30 +1,44 @@
 test_h5mread_2D <- function()
 {
     do_2D_tests <- function(m, M, noreduce=FALSE, as.integer=FALSE, method=0L) {
-        read <- function(starts=NULL, counts=NULL)
+        read <- function(starts=NULL, counts=NULL, as.vector=NA)
             h5mread(M@seed@filepath, M@seed@name,
-                    starts=starts, counts=counts,
-                    noreduce=noreduce, as.integer=as.integer, method=method)
+                    starts=starts, counts=counts, noreduce=noreduce,
+                    as.vector=as.vector, as.integer=as.integer, method=method)
 
         current <- read()
         checkIdentical(m, current)
+        current <- read(as.vector=TRUE)
+        checkIdentical(as.vector(m), current)
 
         current <- read(list(NULL, NULL))
         checkIdentical(m, current)
 
         current <- read(list(integer(0), integer(0)))
-        checkIdentical(m[NULL, NULL, drop=FALSE], current)
+        target  <- m[NULL, NULL, drop=FALSE]
+        checkIdentical(target, current)
+        current <- read(list(integer(0), integer(0)), as.vector=TRUE)
+        checkIdentical(as.vector(target), current)
 
         ## With indices strictly sorted
 
         current <- read(list(c(2:5, 7:10), NULL))
-        checkIdentical(m[c(2:5, 7:10), , drop=FALSE], current)
+        target <- m[c(2:5, 7:10), , drop=FALSE]
+        checkIdentical(target, current)
+        current <- read(list(c(2:5, 7:10), NULL), as.vector=TRUE)
+        checkIdentical(as.vector(target), current)
 
         current <- read(list(NULL, 1:2))
-        checkIdentical(m[ , 1:2, drop=FALSE], current)
+        target <- m[ , 1:2, drop=FALSE]
+        checkIdentical(target, current)
+        current <- read(list(NULL, 1:2), as.vector=TRUE)
+        checkIdentical(as.vector(target), current)
 
         current <- read(list(7:10, c(1:2, 5)))
-        checkIdentical(m[7:10, c(1:2, 5), drop=FALSE], current)
+        target <- m[7:10, c(1:2, 5), drop=FALSE]
+        checkIdentical(target, current)
+        current <- read(list(7:10, c(1:2, 5)), as.vector=TRUE)
+        checkIdentical(as.vector(target), current)
 
         ## With indices in any order and with duplicates
 
@@ -32,9 +46,11 @@ test_h5mread_2D <- function()
 
         current <- read(list(i, NULL))
         checkIdentical(m[i, , drop=FALSE], current)
+        checkException(read(list(i, NULL), as.vector=TRUE))
 
         current <- read(list(i, c(6:5, 5)))
         checkIdentical(m[i, c(6:5, 5), drop=FALSE], current)
+        checkException(read(list(i, c(6:5, 5)), as.vector=TRUE))
 
         ## Only methods 1 and 3 support 'counts'.
         if (!(method %in% c(1L, 3L)))
@@ -43,17 +59,26 @@ test_h5mread_2D <- function()
         starts <- list(integer(0), 4L)
         counts <- list(integer(0), 2L)
         current <- read(starts, counts)
-        checkIdentical(m[NULL, 4:5, drop=FALSE], current)
+        target <- m[NULL, 4:5, drop=FALSE]
+        checkIdentical(target, current)
+        current <- read(starts, counts, as.vector=TRUE)
+        checkIdentical(as.vector(target), current)
 
         starts <- list(5L, integer(0))
         counts <- list(4L, integer(0))
         current <- read(starts, counts)
-        checkIdentical(m[5:8, NULL, drop=FALSE], current)
+        target <- m[5:8, NULL, drop=FALSE]
+        checkIdentical(target, current)
+        current <- read(starts, counts, as.vector=TRUE)
+        checkIdentical(as.vector(target), current)
 
         starts <- list(c(2L, 5L), 4L)
         counts <- list(c(3L, 4L), 2L)
         current <- read(starts, counts)
-        checkIdentical(m[2:8, 4:5, drop=FALSE], current)
+        target <- m[2:8, 4:5, drop=FALSE]
+        checkIdentical(target, current)
+        current <- read(starts, counts, as.vector=TRUE)
+        checkIdentical(as.vector(target), current)
     }
 
     do_2D_sparse_tests <- function(M, as.integer=FALSE) {
@@ -214,13 +239,15 @@ test_h5mread_3D <- function()
     DIM <- c(10, 15, 6)
 
     do_3D_tests <- function(a, A, noreduce=FALSE, as.integer=FALSE, method=0L) {
-        read <- function(starts=NULL, counts=NULL)
+        read <- function(starts=NULL, counts=NULL, as.vector=NA)
             h5mread(A@seed@filepath, A@seed@name,
-                    starts=starts, counts=counts,
-                    noreduce=noreduce, as.integer=as.integer, method=method)
+                    starts=starts, counts=counts, noreduce=noreduce,
+                    as.vector=as.vector, as.integer=as.integer, method=method)
 
         current <- read()
         checkIdentical(a, current)
+        current <- read(as.vector=TRUE)
+        checkIdentical(as.vector(a), current)
 
         current <- read(list(NULL, NULL, NULL))
         checkIdentical(a, current)
@@ -231,16 +258,28 @@ test_h5mread_3D <- function()
         ## With indices strictly sorted
 
         current <- read(list(c(2:5, 7:10), NULL, NULL))
-        checkIdentical(a[c(2:5, 7:10), , , drop=FALSE], current)
+        target <- a[c(2:5, 7:10), , , drop=FALSE]
+        checkIdentical(target, current)
+        current <- read(list(c(2:5, 7:10), NULL, NULL), as.vector=TRUE)
+        checkIdentical(as.vector(target), current)
 
         current <- read(list(NULL, c(11:12, 14), NULL))
-        checkIdentical(a[ , c(11:12, 14), , drop=FALSE], current)
+        target <- a[ , c(11:12, 14), , drop=FALSE]
+        checkIdentical(target, current)
+        current <- read(list(NULL, c(11:12, 14), NULL), as.vector=TRUE)
+        checkIdentical(as.vector(target), current)
 
         current <- read(list(NULL, NULL, 1:2))
-        checkIdentical(a[ , , 1:2, drop=FALSE], current)
+        target <- a[ , , 1:2, drop=FALSE]
+        checkIdentical(target, current)
+        current <- read(list(NULL, NULL, 1:2), as.vector=TRUE)
+        checkIdentical(as.vector(target), current)
 
         current <- read(list(7:10, c(11:12, 14), c(1:2, 5)))
-        checkIdentical(a[7:10, c(11:12, 14), c(1:2, 5), drop=FALSE], current)
+        target <- a[7:10, c(11:12, 14), c(1:2, 5), drop=FALSE]
+        checkIdentical(target, current)
+        current <- read(list(7:10, c(11:12, 14), c(1:2, 5)), as.vector=TRUE)
+        checkIdentical(as.vector(target), current)
 
         ## With indices in any order and with duplicates
 
@@ -248,9 +287,11 @@ test_h5mread_3D <- function()
 
         current <- read(list(i, NULL, NULL))
         checkIdentical(a[i, , , drop=FALSE], current)
+        checkException(read(list(i, NULL, NULL), as.vector=TRUE))
 
         current <- read(list(i, NULL, c(6:5, 5)))
         checkIdentical(a[i, , c(6:5, 5), drop=FALSE], current)
+        checkException(read(list(i, NULL, c(6:5, 5)), as.vector=TRUE))
 
         ## Only methods 1 and 3 support 'counts'.
         if (!(method %in% c(1L, 3L)))
@@ -259,22 +300,34 @@ test_h5mread_3D <- function()
         starts <- list(integer(0), NULL, 4L)
         counts <- list(integer(0), NULL, 2L)
         current <- read(starts, counts)
-        checkIdentical(a[NULL, , 4:5, drop=FALSE], current)
+        target <- a[NULL, , 4:5, drop=FALSE]
+        checkIdentical(target, current)
+        current <- read(starts, counts, as.vector=TRUE)
+        checkIdentical(as.vector(target), current)
 
         starts <- list(5L, integer(0), NULL)
         counts <- list(4L, integer(0), NULL)
         current <- read(starts, counts)
-        checkIdentical(a[5:8, NULL, , drop=FALSE], current)
+        target <- a[5:8, NULL, , drop=FALSE]
+        checkIdentical(target, current)
+        current <- read(starts, counts, as.vector=TRUE)
+        checkIdentical(as.vector(target), current)
 
         starts <- list(c(2L, 5L), NULL, 4L)
         counts <- list(c(3L, 4L), NULL, 2L)
         current <- read(starts, counts)
-        checkIdentical(a[2:8, , 4:5, drop=FALSE], current)
+        target <- a[2:8, , 4:5, drop=FALSE]
+        checkIdentical(target, current)
+        current <- read(starts, counts, as.vector=TRUE)
+        checkIdentical(as.vector(target), current)
 
         starts <- list(c(2L, 5L), 11L, 4L)
         counts <- list(c(3L, 4L),  5L, 2L)
         current <- read(starts, counts)
-        checkIdentical(a[2:8, 11:15, 4:5, drop=FALSE], current)
+        target <- a[2:8, 11:15, 4:5, drop=FALSE]
+        checkIdentical(target, current)
+        current <- read(starts, counts, as.vector=TRUE)
+        checkIdentical(as.vector(target), current)
     }
 
     do_3D_sparse_tests <- function(A, as.integer=FALSE) {
@@ -426,5 +479,21 @@ test_h5mread_3D <- function()
             do_3D_sparse_tests(A4)
         }
     }
+}
+
+test_h5mread_1D <- function()
+{
+    a1 <- array(101:120)
+    A1 <- writeHDF5Array(a1, name="A1")
+
+    checkIdentical(as.vector(a1), h5mread(path(A1), "A1"))
+    checkIdentical(a1, h5mread(path(A1), "A1", as.vector=FALSE))
+
+    starts <- list(c(8:1, 7:11))
+    target <- a1[c(8:1, 7:11)]
+    current <- h5mread(path(A1), "A1", starts=starts)
+    checkIdentical(as.vector(target), current)
+    current <- h5mread(path(A1), "A1", starts=starts, as.vector=FALSE)
+    checkIdentical(target, current)
 }
 

@@ -26,7 +26,7 @@ get_h5mread_returned_type <- function(filepath, name, as.integer=FALSE)
 ### Set 'noreduce' to TRUE to skip the reduction step.
 ### Set 'as.integer' to TRUE to force returning the result as an integer array.
 h5mread <- function(filepath, name, starts=NULL, counts=NULL, noreduce=FALSE,
-                    as.integer=FALSE, as.sparse=FALSE,
+                    as.vector=NA, as.integer=FALSE, as.sparse=FALSE,
                     method=0L, use.H5Dread_chunk=FALSE)
 {
     if (!is(filepath, "H5File")) {
@@ -61,6 +61,10 @@ h5mread <- function(filepath, name, starts=NULL, counts=NULL, noreduce=FALSE,
                 logical(1))
             order_starts <- !all(ok)
             if (order_starts) {
+                if (length(ok) != 1L && isTRUE(as.vector))
+                    stop(wmsg("when using 'as.vector=TRUE' on a ",
+                              "multidimensional dataset, list elements ",
+                              "in 'starts' must be strictly sorted"))
                 starts <- lapply(seq_along(starts0),
                     function(i) {
                         start0 <- starts0[[i]]
@@ -69,7 +73,7 @@ h5mread <- function(filepath, name, starts=NULL, counts=NULL, noreduce=FALSE,
                         start0 <- sort(start0)
                         start <- unique(start0)
                         if (as.sparse && length(start) != length(start0))
-                            stop(wmsg("when 'as.sparse' is TRUE, list ",
+                            stop(wmsg("when using 'as.sparse=TRUE', list ",
                                       "elements in 'starts' are not allowed ",
                                       "to contain duplicates"))
                         start
@@ -81,10 +85,10 @@ h5mread <- function(filepath, name, starts=NULL, counts=NULL, noreduce=FALSE,
     } else {
         stop(wmsg("'starts' must be a list (or NULL)"))
     }
-    ## C_h5mread() will return an ordinary array if 'as.sparse' is FALSE,
-    ## or 'list(ans_dim, nzindex, nzdata)' if it's TRUE.
+    ## C_h5mread() will return an ordinary array or vector if 'as.sparse'
+    ## is FALSE, or 'list(ans_dim, nzindex, nzdata)' if it's TRUE.
     ans <- .Call2("C_h5mread", filepath, name, starts, counts, noreduce,
-                               as.integer, as.sparse,
+                               as.vector, as.integer, as.sparse,
                                method, use.H5Dread_chunk,
                                PACKAGE="HDF5Array")
     if (as.sparse)
@@ -99,8 +103,13 @@ h5mread <- function(filepath, name, starts=NULL, counts=NULL, noreduce=FALSE,
         })
     if (as.sparse) {
         OLD_extract_sparse_array(ans, index)
-    } else {
+    } else if (is.array(ans)) {
         extract_array(ans, index)
+    } else if (length(index) == 1L) {
+        ans[index[[1L]]]
+    } else {
+        ## Sanity check (should never happen).
+        stop(wmsg(".Call entry point C_h5mread returned an unexpected object"))
     }
 }
 

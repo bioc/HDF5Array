@@ -1,16 +1,15 @@
-#ifndef _H5MREAD_STARTS_H_
-#define _H5MREAD_STARTS_H_
+#ifndef _H5MREAD_INDEX_H_
+#define _H5MREAD_INDEX_H_
 
-#include "H5DSetDescriptor.h"
+#include "ChunkIterator.h"
 #include <Rdefines.h>
 
 SEXP _h5mread_index(
-	const H5DSetDescriptor *h5dset,
-	SEXP index,
+	ChunkIterator *chunk_iter,
 	int method,
 	int use_H5Dread_chunk,
-	int *ans_dim
+	const size_t *ans_dim
 );
 
-#endif  /* _H5MREAD_STARTS_H_ */
+#endif  /* _H5MREAD_INDEX_H_ */
 

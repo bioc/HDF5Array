@@ -61,3 +61,20 @@ setMethod("extractNonzeroDataByRow", "H5SparseMatrix",
 setAs("H5SparseMatrix", "dgCMatrix", .from_H5SparseMatrix_to_dgCMatrix)
 setAs("H5SparseMatrix", "sparseMatrix", .from_H5SparseMatrix_to_dgCMatrix)
 
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### Coercion to SVT_SparseMatrix
+###
+
+.from_H5SparseMatrix_to_SVT_SparseMatrix <-
+    function(from) as(from@seed, "SVT_SparseMatrix")
+
+setAs("H5SparseMatrix", "SVT_SparseMatrix",
+    .from_H5SparseMatrix_to_SVT_SparseMatrix)
+setAs("H5SparseMatrix", "SVT_SparseArray",
+    .from_H5SparseMatrix_to_SVT_SparseMatrix)
+setAs("H5SparseMatrix", "SparseMatrix",
+    .from_H5SparseMatrix_to_SVT_SparseMatrix)
+setAs("H5SparseMatrix", "SparseArray",
+    .from_H5SparseMatrix_to_SVT_SparseMatrix)
+

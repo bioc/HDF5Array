@@ -95,10 +95,11 @@
 {
     name <- paste0(group, "/indptr")
     old_len <- h5length(filepath, name)
-    old_data_len <- as.vector(h5mread(filepath, name, starts=list(old_len)))
+    old_data_len <- h5mread(filepath, name, starts=list(old_len),
+                            as.vector=TRUE)
     indptr <- end(PartitioningByEnd(col_indices, NG=ncol)) + old_data_len
     new_len <- h5append(indptr, filepath, name)
-    as.vector(h5mread(filepath, name, starts=list(new_len)))
+    h5mread(filepath, name, starts=list(new_len), as.vector=TRUE)
 }
 
 

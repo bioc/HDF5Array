@@ -140,9 +140,8 @@ setMethod("path", "HDF5ArraySeed",
         val <- vector(type, 1L)  # fake value
     } else {
         index <- rep.int(list(1L), length(dim))
-        ans <- h5mread(filepath, name, index)
-        stopifnot(length(ans) == 1L)  # sanity check
-        val <- ans[[1L]]  # drop any attribute
+        val <- h5mread(filepath, name, index, as.vector=TRUE)
+        stopifnot(length(val) == 1L)  # sanity check
     }
     val
 }
@@ -241,7 +240,7 @@ setMethod("dimnames", "HDF5ArraySeed",
     if (!is.null(index))
         index <- S4Arrays:::expand_Nindex_RangeNSBS(index)
     h5mread(filepath, name, starts=index,
-            as.integer=as.integer, as.sparse=as.sparse)
+            as.vector=FALSE, as.integer=as.integer, as.sparse=as.sparse)
 }
 
 

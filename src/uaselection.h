@@ -21,10 +21,10 @@ int _shallow_check_uaselection(
 
 long long int _check_uaselection(
 	int ndim,
-	const long long int *dim,
+	const size_t *dim,
 	SEXP starts,
 	SEXP counts,
-	int *uaselection_dim_buf
+	size_t *uaselection_dim_buf
 );
 
 SEXP C_check_uaselection(
@@ -35,13 +35,13 @@ SEXP C_check_uaselection(
 
 long long int _check_ordered_uaselection(
 	int ndim,
-	const long long int *dim,
+	const size_t *dim,
 	SEXP starts,
 	SEXP counts,
-	int *uaselection_dim_buf,
-	int *nstart_buf,
-	int *nchip_buf,
-	long long int *last_chip_start_buf
+	size_t *uaselection_dim_buf,
+	size_t *nstart_buf,
+	size_t *nchip_buf,
+	size_t *last_chip_start_buf
 );
 
 SEXP C_check_ordered_uaselection(
@@ -52,16 +52,17 @@ SEXP C_check_ordered_uaselection(
 
 int _uaselection_can_be_reduced(
 	int ndim,
-	const int *nstart,
-	const int *nchip
+	SEXP starts,
+	const size_t *nstart,
+	const size_t *nchip
 );
 
 SEXP _reduce_uaselection(
 	int ndim,
 	SEXP starts, SEXP counts,
-	const int *uaselection_dim,
-	const int *nchip,
-	const long long int *last_chip_start
+	const size_t *uaselection_dim,
+	const size_t *nchip,
+	const size_t *last_chip_start
 );
 
 SEXP C_reduce_uaselection(
@@ -72,11 +73,11 @@ SEXP C_reduce_uaselection(
 
 int _map_starts_to_chunks(
 	int ndim,
-	const long long int *dim,
-	const long long int *chunkdim,
+	const size_t *dim,
+	const size_t *chunkdim,
 	SEXP starts,
-	int *nstart_buf,
-	IntAEAE *breakpoint_bufs,
+	size_t *nstart_buf,
+	LLongAEAE *breakpoint_bufs,
 	LLongAEAE *tchunkidx_bufs
 );
 
@@ -91,10 +92,17 @@ SEXP C_map_starts_to_chunks(
  * Inline functions
  */
 
-static inline long long int _get_trusted_elt(SEXP x, int i)
+static inline long long int get_trusted_elt(SEXP x, R_xlen_t i)
 {
 	return IS_INTEGER(x) ? (long long int) INTEGER(x)[i] :
 			       (long long int) REAL(x)[i];
+}
+
+static inline size_t *R_alloc0_size_t_array(int n)
+{
+        size_t *x = (size_t *) R_alloc((size_t) n, sizeof(size_t));
+        memset(x, 0, sizeof(size_t) * n);
+        return x;
 }
 
 #endif  /* _UASELECTION_H_ */

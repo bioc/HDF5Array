@@ -6,15 +6,12 @@
 \title{An alternative to \code{rhdf5::h5read}}
 
 \description{
-  \code{h5mread} is the result of experimenting with alternative
-  \code{rhdf5::h5read} implementations.
-
-  It should still be considered experimental!
+  An efficient and flexible alternative to \code{rhdf5::h5read()}.
 }
 
 \usage{
 h5mread(filepath, name, starts=NULL, counts=NULL, noreduce=FALSE,
-        as.integer=FALSE, as.sparse=FALSE,
+        as.vector=NA, as.integer=FALSE, as.sparse=FALSE,
         method=0L, use.H5Dread_chunk=FALSE)
 
 get_h5mread_returned_type(filepath, name, as.integer=FALSE)
@@ -73,6 +70,14 @@ get_h5mread_returned_type(filepath, name, as.integer=FALSE)
   \item{noreduce}{
     TODO
   }
+  \item{as.vector}{
+    Should the data be returned in a vector instead of an array?
+    By default (i.e. when set to \code{NA}), the data is returned in an
+    ordinary array when reading from a multidimensional dataset, and in
+    an ordinary vector when reading from a 1D dataset.
+    You can override this by setting \code{as.vector} to \code{TRUE}
+    or \code{FALSE}.
+  }
   \item{as.integer}{
     TODO
   }
@@ -88,19 +93,18 @@ get_h5mread_returned_type(filepath, name, as.integer=FALSE)
 }
 
 \details{
-  COMING SOON...
+  DETAILS COMING SOON...
 }
 
 \value{
-  An array for \code{h5mread}.
+  \code{h5mread()} returns an ordinary array or vector.
 
-  The type of the array that will be returned by \code{h5mread} for
-  \code{get_h5mread_returned_type}.
-  Equivalent to:
+  \code{get_h5mread_returned_type()} returns the type of the array or
+  vector that will be returned by \code{h5mread()}.
+  Equivalent to (but more efficient than):
   \preformatted{  typeof(h5mread(filepath, name, rep(list(integer(0)), ndim)))
-  } where \code{ndim} is the number of dimensions (a.k.a. the \emph{rank}
-  in HDF5 jargon) of the dataset. \code{get_h5mread_returned_type} is
-  provided for convenience.
+  } where \code{ndim} is the number of dimensions (a.k.a. \emph{rank} in
+  HDF5 jargon) of the dataset.
 }
 
 \seealso{
@@ -175,13 +179,13 @@ index <- list(77 * sample(34088679, 5000, replace=TRUE))
 ## h5mread() is about 4x faster than h5read():
 system.time(a <- h5mread(fname0, "mm10/data", index))
 system.time(b <- h5read(fname0, "mm10/data", index=index))
-stopifnot(identical(a, b))
+stopifnot(identical(a, as.vector(b)))
 
 index <- list(sample(1306127, 7500, replace=TRUE))
 ## h5mread() is about 20x faster than h5read():
 system.time(a <- h5mread(fname0, "mm10/barcodes", index))
 system.time(b <- h5read(fname0, "mm10/barcodes", index=index))
-stopifnot(identical(a, b))
+stopifnot(identical(a, as.vector(b)))
 
 ## With the "dense" TENxBrainData dataset
 ## --------------------------------------

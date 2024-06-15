@@ -75,7 +75,7 @@ typedef struct h5dset_descriptor_t {
 	hsize_t *h5dim;
 	H5D_layout_t h5layout;
 	hsize_t *h5chunkdim;
-	int *h5nchunk;
+	size_t *h5nchunk;
 } H5DSetDescriptor;
 
 

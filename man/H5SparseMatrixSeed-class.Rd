@@ -40,6 +40,8 @@
 \alias{coerce,CSC_H5SparseMatrixSeed,sparseMatrix-method}
 \alias{coerce,CSR_H5SparseMatrixSeed,dgCMatrix-method}
 \alias{coerce,CSR_H5SparseMatrixSeed,sparseMatrix-method}
+\alias{coerce,CSC_H5SparseMatrixSeed,SVT_SparseMatrix-method}
+\alias{coerce,CSC_H5SparseMatrixSeed,SVT_SparseArray-method}
 
 \alias{show,H5SparseMatrixSeed-method}
 

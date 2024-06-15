@@ -14,6 +14,10 @@
 
 \alias{coerce,H5SparseMatrix,dgCMatrix-method}
 \alias{coerce,H5SparseMatrix,sparseMatrix-method}
+\alias{coerce,H5SparseMatrix,SVT_SparseMatrix-method}
+\alias{coerce,H5SparseMatrix,SVT_SparseArray-method}
+\alias{coerce,H5SparseMatrix,SparseMatrix-method}
+\alias{coerce,H5SparseMatrix,SparseArray-method}
 
 \title{HDF5 sparse matrices as DelayedMatrix objects}
 
@@ -71,16 +75,27 @@ H5SparseMatrix(filepath, group)
 library(zellkonverter)
 h5ad_file <- system.file("extdata", "example_anndata.h5ad",
                          package="zellkonverter")
-h5ls(h5ad_file)
+rhdf5::h5ls(h5ad_file)
 
 M <- H5SparseMatrix(h5ad_file, "/obsp/connectivities")
 M
 
+class(M)  # H5SparseMatrix
 is(M, "DelayedMatrix")  # TRUE
-dim(M)
+
 seed(M)
+class(seed(M))  # CSC_H5SparseMatrixSeed
+
+dim(M)
 path(M)
 is_sparse(M)  # TRUE
+
+## Use coercion to load the full dataset into memory:
+
+as.matrix(M)          # as ordinary array (usually not recommended)
+as(M, "dgCMatrix")    # as dgCMatrix (brings back 'sm')
+as(M, "SparseArray")  # as SparseArray object (most efficient)
+SparseArray(M)        # equivalent to 'as(M, "SparseArray")'
 }
 \keyword{classes}
 \keyword{methods}

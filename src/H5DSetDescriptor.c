@@ -221,16 +221,13 @@ static const char *H5layout2str(H5D_layout_t H5layout)
 
 hsize_t *_alloc_hsize_t_buf(size_t buflength, int zeroes, const char *what)
 {
-	hsize_t *buf;
-	int i;
-
-	buf = (hsize_t *) malloc(buflength * sizeof(hsize_t));
+	hsize_t *buf = (hsize_t *) malloc(buflength * sizeof(hsize_t));
 	if (buf == NULL) {
 		PRINT_TO_ERRMSG_BUF("failed to allocate memory for %s", what);
 		return NULL;
 	}
 	if (zeroes) {
-		for (i = 0; i < buflength; i++)
+		for (size_t i = 0; i < buflength; i++)
 			buf[i] = 0;
 	}
 	return buf;
@@ -277,30 +274,25 @@ static char *get_h5name(hid_t obj_id)
  */
 int _get_h5attrib_strval(hid_t dset_id, const char *attr_name, CharAE *val)
 {
-	int ret;
-	hid_t attr_id, attr_type_id;
-	H5T_class_t attr_H5class;
-	hsize_t attr_size;
-
-	ret = H5Aexists(dset_id, attr_name);
+	int ret = H5Aexists(dset_id, attr_name);
 	if (ret < 0) {
 		PRINT_TO_ERRMSG_BUF("H5Aexists() returned an error");
 		return -1;
 	}
 	if (ret == 0)
 		return 0;
-	attr_id = H5Aopen(dset_id, attr_name, H5P_DEFAULT);
+	hid_t attr_id = H5Aopen(dset_id, attr_name, H5P_DEFAULT);
 	if (attr_id < 0) {
 		PRINT_TO_ERRMSG_BUF("H5Aopen() returned an error");
 		return -1;
 	}
-	attr_type_id = H5Aget_type(attr_id);
+	hid_t attr_type_id = H5Aget_type(attr_id);
 	if (attr_type_id < 0) {
 		H5Aclose(attr_id);
 		PRINT_TO_ERRMSG_BUF("H5Aget_type() returned an error");
 		return -1;
 	}
-	attr_H5class = H5Tget_class(attr_type_id);
+	H5T_class_t attr_H5class = H5Tget_class(attr_type_id);
 	if (attr_H5class == H5T_NO_CLASS) {
 		H5Tclose(attr_type_id);
 		H5Aclose(attr_id);
@@ -312,16 +304,16 @@ int _get_h5attrib_strval(hid_t dset_id, const char *attr_name, CharAE *val)
 		H5Aclose(attr_id);
 		return 1;
 	}
-	attr_size = H5Aget_storage_size(attr_id);
+	size_t attr_size = (size_t) H5Aget_storage_size(attr_id);
 	if (attr_size == 0) {
 		H5Tclose(attr_type_id);
 		H5Aclose(attr_id);
 		PRINT_TO_ERRMSG_BUF("H5Aget_storage_size() returned 0");
 		return -1;
 	}
-	if ((size_t) attr_size > val->_buflength)
-		CharAE_extend(val, (size_t) attr_size);
-	CharAE_set_nelt(val, (size_t) attr_size);
+	if (attr_size > val->_buflength)
+		CharAE_extend(val, attr_size);
+	CharAE_set_nelt(val, attr_size);
 	ret = H5Aread(attr_id, attr_type_id, val->elts);
 	H5Tclose(attr_type_id);
 	H5Aclose(attr_id);
@@ -347,30 +339,25 @@ int _get_h5attrib_strval(hid_t dset_id, const char *attr_name, CharAE *val)
  */
 static int get_h5attrib_intval(hid_t dset_id, const char *attr_name, int *val)
 {
-	int ret;
-	hid_t attr_id, attr_type_id;
-	H5T_class_t attr_H5class;
-	hsize_t attr_size;
-
-	ret = H5Aexists(dset_id, attr_name);
+	int ret = H5Aexists(dset_id, attr_name);
 	if (ret < 0) {
 		PRINT_TO_ERRMSG_BUF("H5Aexists() returned an error");
 		return -1;
 	}
 	if (ret == 0)
 		return 0;
-	attr_id = H5Aopen(dset_id, attr_name, H5P_DEFAULT);
+	hid_t attr_id = H5Aopen(dset_id, attr_name, H5P_DEFAULT);
 	if (attr_id < 0) {
 		PRINT_TO_ERRMSG_BUF("H5Aopen() returned an error");
 		return -1;
 	}
-	attr_type_id = H5Aget_type(attr_id);
+	hid_t attr_type_id = H5Aget_type(attr_id);
 	if (attr_type_id < 0) {
 		H5Aclose(attr_id);
 		PRINT_TO_ERRMSG_BUF("H5Aget_type() returned an error");
 		return -1;
 	}
-	attr_H5class = H5Tget_class(attr_type_id);
+	H5T_class_t attr_H5class = H5Tget_class(attr_type_id);
 	if (attr_H5class == H5T_NO_CLASS) {
 		H5Tclose(attr_type_id);
 		H5Aclose(attr_id);
@@ -382,7 +369,7 @@ static int get_h5attrib_intval(hid_t dset_id, const char *attr_name, int *val)
 		H5Aclose(attr_id);
 		return 1;
 	}
-	attr_size = H5Aget_storage_size(attr_id);
+	size_t attr_size = (size_t) H5Aget_storage_size(attr_id);
 	if (attr_size != sizeof(int)) {
 		H5Tclose(attr_type_id);
 		H5Aclose(attr_id);
@@ -527,10 +514,8 @@ static int nested_depth = 0;
 static char margin[4 * MAX_SUPPORTED_NESTED_DEPTH + 1];
 static void set_margin()
 {
-	int indent, i;
-
-	indent = 4 * nested_depth;
-	for (i = 0; i < indent; i++)
+	int indent = 4 * nested_depth;
+	for (int i = 0; i < indent; i++)
 		margin[i] = ' ';
 	margin[indent] = '\0';
 }
@@ -545,16 +530,13 @@ static void print_H5TMemberDescriptor(H5TMemberDescriptor *h5tmember);
 
 static void destroy_H5TypeDescriptor(H5TypeDescriptor *h5type)
 {
-	int i;
-
 	if (h5type->num_h5tmembers != 0) {
-		for (i = 0; i < h5type->num_h5tmembers; i++) {
+		for (int i = 0; i < h5type->num_h5tmembers; i++) {
 			if (h5type->h5tmembers[i] != NULL)
 			    destroy_H5TMemberDescriptor(h5type->h5tmembers[i]);
 		}
 		free(h5type->h5tmembers);
 	}
-
 	free(h5type);
 	return;
 }
@@ -564,12 +546,8 @@ static H5TypeDescriptor *new_H5TypeDescriptor(
 		int as_int, const char *storage_mode,
 		int get_Rtype_only)
 {
-	H5TypeDescriptor *h5type;
-	int num_h5tmembers, i, signedness;
-	hid_t native_type_id, native_type_id_for_Rtype;
-	size_t native_type_size;
-
-	h5type = (H5TypeDescriptor *) malloc(sizeof(H5TypeDescriptor));
+	H5TypeDescriptor *h5type =
+		(H5TypeDescriptor *) malloc(sizeof(H5TypeDescriptor));
 	if (h5type == NULL) {
 		PRINT_TO_ERRMSG_BUF("failed to allocate memory "
 				    "for H5TypeDescriptor");
@@ -603,7 +581,7 @@ static H5TypeDescriptor *new_H5TypeDescriptor(
 
 	if (h5type->h5class == H5T_COMPOUND || h5type->h5class == H5T_ENUM) {
 		/* Set struct members 'num_h5tmembers' and 'h5tmembers'. */
-		num_h5tmembers = H5Tget_nmembers(h5type_id);
+		int num_h5tmembers = H5Tget_nmembers(h5type_id);
 		if (num_h5tmembers < 0) {
 			PRINT_TO_ERRMSG_BUF("H5Tget_nmembers() "
 					    "returned an error");
@@ -626,7 +604,7 @@ static H5TypeDescriptor *new_H5TypeDescriptor(
 			goto on_error;
 		}
 		nested_depth++;
-		for (i = 0; i < num_h5tmembers; i++) {
+		for (int i = 0; i < num_h5tmembers; i++) {
 			h5type->h5tmembers[i] =
 				new_H5TMemberDescriptor(h5type_id, i,
 							h5type->h5class,
@@ -641,7 +619,7 @@ static H5TypeDescriptor *new_H5TypeDescriptor(
 
 	if (h5type->h5class == H5T_INTEGER) {
 		/* Set struct member 'signedness'. */
-		signedness = H5Tget_sign(h5type_id);
+		int signedness = H5Tget_sign(h5type_id);
 		if (signedness < 0) {
 			PRINT_TO_ERRMSG_BUF("H5Tget_sign() returned an error");
 			goto on_error;
@@ -681,13 +659,13 @@ static H5TypeDescriptor *new_H5TypeDescriptor(
 		return h5type;
 
 	/* Set struct member 'native_type_id'. */
-	native_type_id = map_h5type_to_predef_native_type(h5type_id);
+	hid_t native_type_id = map_h5type_to_predef_native_type(h5type_id);
 	if (native_type_id < 0)
 		goto on_error;
 	h5type->native_type_id = native_type_id;
 
 	/* Set struct member 'native_type_size'. */
-	native_type_size = H5Tget_size(h5type->native_type_id);
+	size_t native_type_size = H5Tget_size(h5type->native_type_id);
 	if (native_type_size == 0) {
 		PRINT_TO_ERRMSG_BUF("H5Tget_size(native_type_id) returned 0");
 		goto on_error;
@@ -696,7 +674,7 @@ static H5TypeDescriptor *new_H5TypeDescriptor(
 
 	if (h5type->Rtype_is_set) {
 		/* Set struct member 'native_type_id_for_Rtype'. */
-		native_type_id_for_Rtype =
+		hid_t native_type_id_for_Rtype =
 			map_Rtype_to_predef_native_type(h5type->Rtype);
 		if (native_type_id_for_Rtype < 0)
 			goto on_error;
@@ -921,15 +899,6 @@ void _destroy_H5DSetDescriptor(H5DSetDescriptor *h5dset)
 int _init_H5DSetDescriptor(H5DSetDescriptor *h5dset, hid_t dset_id,
 		int as_int, int get_Rtype_only)
 {
-	char *h5name, *storage_mode_attr;
-	hid_t h5type_id, h5space_id, h5plist_id;
-	H5TypeDescriptor *h5type;
-	int as_na_attr, ndim, *h5nchunk, h5along;
-	hsize_t *h5dim, *h5chunkdim, d, chunkd, nchunk;
-	H5D_layout_t h5layout;
-	htri_t ret;
-	CharAE *buf;
-
 	/* Initialize H5DSetDescriptor struct members that control
 	   what _destroy_H5DSetDescriptor() needs to free or close. */
 	h5dset->h5name = NULL;
@@ -945,14 +914,14 @@ int _init_H5DSetDescriptor(H5DSetDescriptor *h5dset, hid_t dset_id,
 	h5dset->dset_id = dset_id;
 
 	/* Set struct member 'h5name'. */
-	h5name = get_h5name(dset_id);
+	char *h5name = get_h5name(dset_id);
 	if (h5name == NULL)
 		goto on_error;
 	h5dset->h5name = h5name;
 
 	/* Set struct member 'storage_mode_attr'. */
-	buf = new_CharAE(0);
-	ret = _get_h5attrib_strval(dset_id, "storage.mode", buf);
+	CharAE *buf = new_CharAE(0);
+	int ret = _get_h5attrib_strval(dset_id, "storage.mode", buf);
 	if (ret < 0)
 		goto on_error;
 	if (ret == 1) {
@@ -961,7 +930,7 @@ int _init_H5DSetDescriptor(H5DSetDescriptor *h5dset, hid_t dset_id,
 		goto on_error;
 	}
 	if (ret == 2) {
-		storage_mode_attr = (char *) malloc(CharAE_get_nelt(buf));
+		char *storage_mode_attr = (char *) malloc(CharAE_get_nelt(buf));
 		if (storage_mode_attr == NULL) {
 			PRINT_TO_ERRMSG_BUF("failed to allocate memory "
 					    "for 'storage_mode_attr'");
@@ -972,14 +941,14 @@ int _init_H5DSetDescriptor(H5DSetDescriptor *h5dset, hid_t dset_id,
 	}
 
 	/* Set struct member 'h5type'. */
-	h5type_id = H5Dget_type(dset_id);
+	hid_t h5type_id = H5Dget_type(dset_id);
 	if (h5type_id < 0) {
 		PRINT_TO_ERRMSG_BUF("H5Dget_type() returned an error");
 		goto on_error;
 	}
-	h5type = new_H5TypeDescriptor(h5type_id,
-				      as_int, h5dset->storage_mode_attr,
-				      get_Rtype_only);
+	H5TypeDescriptor *h5type = new_H5TypeDescriptor(h5type_id,
+					as_int, h5dset->storage_mode_attr,
+					get_Rtype_only);
 	if (h5type == NULL)
 		goto on_error;
 	h5dset->h5type = h5type;
@@ -988,6 +957,7 @@ int _init_H5DSetDescriptor(H5DSetDescriptor *h5dset, hid_t dset_id,
 		return 0;
 
 	/* Set struct member 'as_na_attr'. */
+	int as_na_attr;
 	ret = get_h5attrib_intval(dset_id, "as.na", &as_na_attr);
 	if (ret < 0)
 		goto on_error;
@@ -1000,7 +970,7 @@ int _init_H5DSetDescriptor(H5DSetDescriptor *h5dset, hid_t dset_id,
 	h5dset->as_na_attr = ret == 2 ? as_na_attr : 0;
 
 	/* Set struct member 'h5space_id'. */
-	h5space_id = H5Dget_space(dset_id);
+	hid_t h5space_id = H5Dget_space(dset_id);
 	if (h5space_id < 0) {
 		PRINT_TO_ERRMSG_BUF("H5Dget_space() returned an error");
 		goto on_error;
@@ -1008,7 +978,7 @@ int _init_H5DSetDescriptor(H5DSetDescriptor *h5dset, hid_t dset_id,
 	h5dset->h5space_id = h5space_id;
 
 	/* Set struct member 'ndim'. */
-	ndim = H5Sget_simple_extent_ndims(h5dset->h5space_id);
+	int ndim = H5Sget_simple_extent_ndims(h5dset->h5space_id);
 	if (ndim < 0) {
 		PRINT_TO_ERRMSG_BUF(
 			"H5Sget_simple_extent_ndims() returned an error");
@@ -1017,7 +987,7 @@ int _init_H5DSetDescriptor(H5DSetDescriptor *h5dset, hid_t dset_id,
 	h5dset->ndim = ndim;
 
 	/* Set struct member 'h5plist_id'. */
-	h5plist_id = H5Dget_create_plist(dset_id);
+	hid_t h5plist_id = H5Dget_create_plist(dset_id);
 	if (h5plist_id < 0) {
 		PRINT_TO_ERRMSG_BUF("H5Dget_create_plist() returned an error");
 		goto on_error;
@@ -1025,7 +995,7 @@ int _init_H5DSetDescriptor(H5DSetDescriptor *h5dset, hid_t dset_id,
 	h5dset->h5plist_id = h5plist_id;
 
 	/* Set struct member 'h5dim'. */
-	h5dim = _alloc_hsize_t_buf(ndim, 0, "'h5dim'");
+	hsize_t *h5dim = _alloc_hsize_t_buf(ndim, 0, "'h5dim'");
 	if (h5dim == NULL)
 		goto on_error;
 	if (H5Sget_simple_extent_dims(h5space_id, h5dim, NULL) != ndim) {
@@ -1036,7 +1006,7 @@ int _init_H5DSetDescriptor(H5DSetDescriptor *h5dset, hid_t dset_id,
 	h5dset->h5dim = h5dim;
 
 	/* Set struct member 'h5layout'. */
-	h5layout = H5Pget_layout(h5dset->h5plist_id);
+	H5D_layout_t h5layout = H5Pget_layout(h5dset->h5plist_id);
 	if (h5layout < 0) {
 		PRINT_TO_ERRMSG_BUF("H5Pget_layout() returned an error");
 		goto on_error;
@@ -1045,7 +1015,8 @@ int _init_H5DSetDescriptor(H5DSetDescriptor *h5dset, hid_t dset_id,
 
 	/* Set struct member 'h5chunkdim'. */
 	if (h5dset->h5layout == H5D_CHUNKED) {
-		h5chunkdim = _alloc_hsize_t_buf(ndim, 0, "'h5chunkdim'");
+		hsize_t *h5chunkdim =
+			_alloc_hsize_t_buf(ndim, 0, "'h5chunkdim'");
 		if (h5chunkdim == NULL)
 			goto on_error;
 		if (H5Pget_chunk(h5plist_id, ndim, h5chunkdim) != ndim) {
@@ -1065,28 +1036,22 @@ int _init_H5DSetDescriptor(H5DSetDescriptor *h5dset, hid_t dset_id,
 
 	/* Set struct member 'h5nchunk'. */
 	if (h5dset->h5chunkdim != NULL) {
-		h5nchunk = (int *) malloc(ndim * sizeof(int));
+		size_t *h5nchunk = (size_t *) malloc(ndim * sizeof(size_t));
 		if (h5nchunk == NULL) {
 			PRINT_TO_ERRMSG_BUF("failed to allocate memory "
 					    "for 'h5nchunk'");
 			goto on_error;
 		}
-		for (h5along = 0; h5along < ndim; h5along++) {
-			d = h5dim[h5along];
+		for (int h5along = 0; h5along < ndim; h5along++) {
+			hsize_t d = h5dim[h5along];
 			if (d == 0) {
 				h5nchunk[h5along] = 0;
 				continue;
 			}
-			chunkd = h5dset->h5chunkdim[h5along];
-			nchunk = d / chunkd;
+			hsize_t chunkd = h5dset->h5chunkdim[h5along];
+			size_t nchunk = d / chunkd;
 			if (d % chunkd != 0)
 				nchunk++;
-			if (nchunk > INT_MAX) {
-				PRINT_TO_ERRMSG_BUF("datasets with more than "
-					"INT_MAX chunks along any dimension\n  "
-					"are not supported at the moment");
-				goto on_error;
-			}
 			h5nchunk[h5along] = nchunk;
 		}
 		h5dset->h5nchunk = h5nchunk;
@@ -1191,10 +1156,7 @@ SEXP C_new_H5DSetDescriptor_xp(SEXP filepath, SEXP name, SEXP as_integer)
 /* --- .Call ENTRY POINT --- */
 SEXP C_show_H5DSetDescriptor_xp(SEXP xp)
 {
-	const H5DSetDescriptor *h5dset;
-	int h5along;
-
-	h5dset = R_ExternalPtrAddr(xp);
+	const H5DSetDescriptor *h5dset = R_ExternalPtrAddr(xp);
 	if (h5dset == NULL) {
 		Rprintf("Expired H5DSetDescriptor\n");
 		return R_NilValue;
@@ -1226,7 +1188,7 @@ SEXP C_show_H5DSetDescriptor_xp(SEXP xp)
 	Rprintf("- h5plist_id = %ld\n", h5dset->h5plist_id);
 
 	Rprintf("- h5dim =");
-	for (h5along = 0; h5along < h5dset->ndim; h5along++)
+	for (int h5along = 0; h5along < h5dset->ndim; h5along++)
 		Rprintf(" %llu", h5dset->h5dim[h5along]);
 	Rprintf("\n");
 
@@ -1236,7 +1198,7 @@ SEXP C_show_H5DSetDescriptor_xp(SEXP xp)
 	if (h5dset->h5chunkdim == NULL) {
 		Rprintf(" NULL\n");
 	} else {
-		for (h5along = 0; h5along < h5dset->ndim; h5along++)
+		for (int h5along = 0; h5along < h5dset->ndim; h5along++)
 			Rprintf(" %llu",
 				h5dset->h5chunkdim[h5along]);
 		if (h5dset->h5layout != H5D_CHUNKED &&
@@ -1244,8 +1206,8 @@ SEXP C_show_H5DSetDescriptor_xp(SEXP xp)
 			Rprintf(" (artificially set to h5dim)");
 		Rprintf("\n");
 		Rprintf("    h5nchunk =");
-		for (h5along = 0; h5along < h5dset->ndim; h5along++)
-			Rprintf(" %d", h5dset->h5nchunk[h5along]);
+		for (int h5along = 0; h5along < h5dset->ndim; h5along++)
+			Rprintf(" %lu", h5dset->h5nchunk[h5along]);
 		Rprintf("\n");
 	}
 

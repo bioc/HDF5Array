@@ -38,7 +38,7 @@ int _alloc_H5Viewport(H5Viewport *vp, int ndim, int mode)
 	}
 	if (mode != ALLOC_H5OFF_AND_H5DIM) {
 		/* Allocate memory for members 'off' and 'dim'. */
-		vp->off = (int *) malloc(2 * ndim * sizeof(int));
+		vp->off = (size_t *) malloc(2 * ndim * sizeof(size_t));
 		if (vp->off == NULL) {
 			if (mode != ALLOC_OFF_AND_DIM)
 				free(vp->h5off);
@@ -65,19 +65,16 @@ void _free_H5Viewport(H5Viewport *vp)
  * Other helpers
  */
 
-hid_t _create_mem_space(int ndim, const int *dim)
+hid_t _create_mem_space(int ndim, const size_t *dim)
 {
-	hsize_t *h5dim;
-	int along, h5along;
-	hid_t mem_space_id;
-
 	/* Allocate and set 'h5dim'. */
-	h5dim = _alloc_hsize_t_buf(ndim, 0, "'h5dim'");
+	hsize_t *h5dim = _alloc_hsize_t_buf(ndim, 0, "'h5dim'");
 	if (h5dim == NULL)
 		return -1;
+	int along, h5along;
 	for (along = 0, h5along = ndim - 1; along < ndim; along++, h5along--)
-		h5dim[h5along] = dim[along];
-	mem_space_id = H5Screate_simple(ndim, h5dim, NULL);
+		h5dim[h5along] = (hsize_t) dim[along];
+	hid_t mem_space_id = H5Screate_simple(ndim, h5dim, NULL);
 	if (mem_space_id < 0)
 		PRINT_TO_ERRMSG_BUF("H5Screate_simple() returned an error");
 	free(h5dim);
@@ -86,9 +83,7 @@ hid_t _create_mem_space(int ndim, const int *dim)
 
 int _select_H5Viewport(hid_t space_id, const H5Viewport *vp)
 {
-	int ret;
-
-	ret = H5Sselect_hyperslab(space_id, H5S_SELECT_SET,
+	int ret = H5Sselect_hyperslab(space_id, H5S_SELECT_SET,
 				  vp->h5off, NULL, vp->h5dim, NULL);
 	if (ret < 0) {
 		PRINT_TO_ERRMSG_BUF("H5Sselect_hyperslab() returned an error");
@@ -99,9 +94,7 @@ int _select_H5Viewport(hid_t space_id, const H5Viewport *vp)
 
 int _add_H5Viewport_to_h5selection(hid_t space_id, const H5Viewport *vp)
 {
-	int ret;
-
-	ret = H5Sselect_hyperslab(space_id, H5S_SELECT_OR,
+	int ret = H5Sselect_hyperslab(space_id, H5S_SELECT_OR,
 				  vp->h5off, NULL, vp->h5dim, NULL);
 	if (ret < 0) {
 		PRINT_TO_ERRMSG_BUF("H5Sselect_hyperslab() returned an error");
@@ -115,7 +108,6 @@ int _read_h5selection(const H5DSetDescriptor *h5dset,
 		const H5Viewport *mem_vp)
 {
 	int ret;
-
 	if (mem_vp == NULL) {
 		ret = H5Sselect_all(mem_space_id);
 		if (ret < 0)
@@ -138,9 +130,7 @@ int _read_H5Viewport(const H5DSetDescriptor *h5dset,
 		hid_t mem_type_id, hid_t mem_space_id, void *mem,
 		const H5Viewport *mem_vp)
 {
-	int ret;
-
-	ret = _select_H5Viewport(h5dset->h5space_id, h5dset_vp);
+	int ret = _select_H5Viewport(h5dset->h5space_id, h5dset_vp);
 	if (ret < 0)
 		return -1;
 	return _read_h5selection(h5dset, mem_type_id, mem_space_id, mem, mem_vp);
@@ -156,18 +146,16 @@ void _init_in_offset(int ndim, SEXP index,
 		const H5Viewport *h5dset_vp,
 		size_t *in_offset)
 {
-	size_t in_off;
-	int along, h5along, i;
-	SEXP start;
-
-	in_off = 0;
+	size_t in_off = 0;
+	int along, h5along;
 	for (along = ndim - 1, h5along = 0; along >= 0; along--, h5along++) {
 		in_off *= h5chunkdim[h5along];
-		i = mem_vp->off[along];
-		start = GET_LIST_ELT(index, along);
-		if (start != R_NilValue)
-			in_off += _get_trusted_elt(start, i) - 1 -
+		SEXP start = GET_LIST_ELT(index, along);
+		if (start != R_NilValue) {
+			R_xlen_t i = mem_vp->off[along];
+			in_off += get_trusted_elt(start, i) - 1 -
 				  h5dset_vp->h5off[h5along];
+		}
 	}
 	*in_offset = in_off;
 	return;

@@ -65,3 +65,20 @@ setMethod("extractNonzeroDataByCol", "TENxMatrix",
 setAs("TENxMatrix", "dgCMatrix", .from_TENxMatrix_to_dgCMatrix)
 setAs("TENxMatrix", "sparseMatrix", .from_TENxMatrix_to_dgCMatrix)
 
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### Coercion to SVT_SparseMatrix
+###
+
+.from_TENxMatrix_to_SVT_SparseMatrix <-
+    function(from) as(from@seed, "SVT_SparseMatrix")
+
+setAs("TENxMatrix", "SVT_SparseMatrix",
+    .from_TENxMatrix_to_SVT_SparseMatrix)
+setAs("TENxMatrix", "SVT_SparseArray",
+    .from_TENxMatrix_to_SVT_SparseMatrix)
+setAs("TENxMatrix", "SparseMatrix",
+    .from_TENxMatrix_to_SVT_SparseMatrix)
+setAs("TENxMatrix", "SparseArray",
+    .from_TENxMatrix_to_SVT_SparseMatrix)
+

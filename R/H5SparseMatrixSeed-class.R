@@ -125,8 +125,8 @@ read_h5sparse_component <- function(filepath, group, name,
         start <- list(start)
     if (!is.null(count))
         count <- list(count)
-    as.vector(h5mread(filepath, name, starts=start, counts=count,
-                                      as.integer=as.integer))
+    h5mread(filepath, name, starts=start, counts=count,
+            as.vector=TRUE, as.integer=as.integer)
 }
 
 ### Returns a numeric vector (integer or double).
@@ -705,9 +705,9 @@ setMethod("extractNonzeroDataByRow", "CSR_H5SparseMatrixSeed",
 
 .from_CSC_H5SparseMatrixSeed_to_dgCMatrix <- function(from)
 {
-    row_indices <- .read_h5sparse_indices(from@filepath, from@group)
     indptr <- .read_h5sparse_indptr(from@filepath, from@group)
     data <- .read_h5sparse_data(from@filepath, from@group, from@subdata)
+    row_indices <- .read_h5sparse_indices(from@filepath, from@group)
     sparseMatrix(i=row_indices, p=indptr, x=data, dims=dim(from),
                  dimnames=dimnames(from))
 }
@@ -721,9 +721,9 @@ setAs("CSC_H5SparseMatrixSeed", "sparseMatrix",
 
 .from_CSR_H5SparseMatrixSeed_to_dgCMatrix <- function(from)
 {
-    col_indices <- .read_h5sparse_indices(from@filepath, from@group)
     indptr <- .read_h5sparse_indptr(from@filepath, from@group)
     data <- .read_h5sparse_data(from@filepath, from@group, from@subdata)
+    col_indices <- .read_h5sparse_indices(from@filepath, from@group)
     sparseMatrix(j=col_indices, p=indptr, x=data, dims=dim(from),
                  dimnames=dimnames(from))
 }
@@ -733,6 +733,27 @@ setAs("CSR_H5SparseMatrixSeed", "dgCMatrix",
 )
 setAs("CSR_H5SparseMatrixSeed", "sparseMatrix",
     .from_CSR_H5SparseMatrixSeed_to_dgCMatrix
+)
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### Coercion to SVT_SparseMatrix
+###
+
+.from_CSC_H5SparseMatrixSeed_to_SVT_SparseMatrix <- function(from)
+{
+    indptr <- .read_h5sparse_indptr(from@filepath, from@group)
+    data <- .read_h5sparse_data(from@filepath, from@group, from@subdata)
+    row_indices <- .read_h5sparse_indices(from@filepath, from@group)
+    SparseArray:::make_SVT_SparseMatrix_from_CSC(dim(from),
+                                                 indptr, data, row_indices)
+}
+
+setAs("CSC_H5SparseMatrixSeed", "SVT_SparseMatrix",
+    .from_CSC_H5SparseMatrixSeed_to_SVT_SparseMatrix
+)
+setAs("CSC_H5SparseMatrixSeed", "SVT_SparseArray",
+    .from_CSC_H5SparseMatrixSeed_to_SVT_SparseMatrix
 )
 
 

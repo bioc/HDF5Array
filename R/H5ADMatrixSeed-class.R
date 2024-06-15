@@ -70,7 +70,7 @@ setMethod("t", "CSR_H5ADMatrixSeed", t.CSR_H5ADMatrixSeed)
     ok <- try(h5isdataset(filepath, ROWNAMES_DATASET), silent=TRUE)
     if (!isTRUE(ok))
         return(NULL)
-    as.character(h5mread(filepath, ROWNAMES_DATASET))
+    h5mread(filepath, ROWNAMES_DATASET, as.vector=TRUE)
 }
 
 ### Must return a list of length 2.

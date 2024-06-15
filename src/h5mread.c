@@ -76,7 +76,7 @@ static int select_method(const H5DSetDescriptor *h5dset,
 	if (as_sparse) {
 		if (counts != R_NilValue) {
 			PRINT_TO_ERRMSG_BUF("'counts' must be NULL when "
-					    "'as.sparse' is set to TRUE");
+					    "'as.sparse' is TRUE");
 			return -1;
 		}
 		if (h5dset->h5chunkdim == NULL) {
@@ -88,13 +88,14 @@ static int select_method(const H5DSetDescriptor *h5dset,
 			method = 7;
 		} else if (method != 7) {
 			PRINT_TO_ERRMSG_BUF("only method 7 is supported "
-					    "when 'as.sparse' is set to TRUE");
+					    "when 'as.sparse' is TRUE");
 			return -1;
 		}
 		return method;
 	}
 	if (method < 0 || method > 6) {
-		PRINT_TO_ERRMSG_BUF("'method' must be >= 0 and <= 6");
+		PRINT_TO_ERRMSG_BUF("'method' must be >= 0 and <= 6 "
+				    "when 'as.sparse' is FALSE");
 		return -1;
 	}
 	if (h5dset->h5type->Rtype == STRSXP) {
@@ -165,6 +166,34 @@ static int select_method(const H5DSetDescriptor *h5dset,
 	return method;
 }
 
+static int set_ans_dim(SEXP ans_dim, const size_t *ans_dim_buf,
+		       int suggest_as_vec)
+{
+	int ndim = LENGTH(ans_dim);
+	for (int along = 0; along < ndim; along++) {
+		size_t d = ans_dim_buf[along];
+		if (d <= INT_MAX) {
+			INTEGER(ans_dim)[along] = (int) d;
+			continue;
+		}
+		const char *s1 = "Too many elements (>= 2^31) "
+				 "selected along dimension";
+		const char *s2 = "of dataset. The\n  selection is "
+				 "too large to fit in an R array.";
+		if (suggest_as_vec) {
+			PRINT_TO_ERRMSG_BUF(
+				"%s %d %s Please reduce the size\n  "
+				"of the selection or use 'as.vector=TRUE' "
+				"to return it as an ordinary\n  vector.",
+				s1, along + 1, s2);
+		} else {
+			PRINT_TO_ERRMSG_BUF("%s %d %s", s1, along + 1, s2);
+		}
+		return -1;
+	}
+	return 0;
+}
+
 /* If the H5 datatype that was used to store the logical data is an 8-bit
    or 16-bit signed integer type (e.g. H5T_STD_I8LE or H5T_STD_I16BE) then
    NA values got loaded as negative values that are not equal to NA_LOGICAL
@@ -206,62 +235,127 @@ static void set_character_NAs(SEXP x)
 
 /* Return R_NilValue on error. */
 static SEXP h5mread(hid_t dset_id, SEXP starts, SEXP counts, int noreduce,
-		    int as_int, int as_sparse,
+		    int as_vec, int as_int, int as_sparse,
 		    int method, int use_H5Dread_chunk)
 {
-	SEXP ans, ans_dim;
 	H5DSetDescriptor h5dset;
-	const H5TypeDescriptor *h5type;
-	int ret;
-
-	ans = R_NilValue;
-
 	if (_init_H5DSetDescriptor(&h5dset, dset_id, as_int, 0) < 0)
-		return ans;
+		return R_NilValue;
 
-	h5type = h5dset.h5type;
+	SEXP ans = R_NilValue;
+	int nprotected = 0;
+
+	const H5TypeDescriptor *h5type = h5dset.h5type;
 	if (!h5type->Rtype_is_set) {
-		_destroy_H5DSetDescriptor(&h5dset);
 		PRINT_TO_ERRMSG_BUF(
 			"h5mread() does not support this type "
 			"of dataset yet, sorry. You can\n  "
 			"use 'H5DSetDescriptor(filepath, name)' "
 			"to see details about the dataset.");
-		return ans;
+		goto done;
 	}
 
-	ret = _shallow_check_uaselection(h5dset.ndim, starts, counts);
+	int ret = _shallow_check_uaselection(h5dset.ndim, starts, counts);
 	if (ret < 0)
-		goto on_error;
+		goto done;
+
+	if (as_vec == NA_INTEGER) {
+		as_vec = h5dset.ndim == 1;
+	} else if (as_vec && as_sparse) {
+		warning("'as.vector' is ignored when 'as.sparse' is TRUE");
+	}
 
 	method = select_method(&h5dset, starts, counts, as_sparse, method);
 	if (method < 0)
-		goto on_error;
+		goto done;
 	if (use_H5Dread_chunk && method != 4 && method != 5) {
 		PRINT_TO_ERRMSG_BUF("invalid use of 'use.H5Dread_chunk'");
-		goto on_error;
+		goto done;
 	}
 
-	ans_dim = PROTECT(NEW_INTEGER(h5dset.ndim));
+	size_t *ans_dim_buf = R_alloc0_size_t_array(h5dset.ndim);
+	SEXP ans_dim;
+	if (as_sparse || !as_vec) {
+		ans_dim = PROTECT(NEW_INTEGER(h5dset.ndim));
+		nprotected++;
+	}
 
 	if (method <= 3) {
-		/* Implements methods 1 to 3. */
-		ans = _h5mread_startscounts(&h5dset, starts, counts, noreduce,
-					    method, INTEGER(ans_dim));
+
+		/* --- Methods 1, 2, 3 (as.sparse=FALSE) --- */
+
+		SEXP startscounts = _compute_startscounts_ans_dim(&h5dset,
+						starts, counts, noreduce,
+						method, ans_dim_buf);
+		if (startscounts == R_NilValue)
+			goto done;
+		if (!as_vec) {
+			ret = set_ans_dim(ans_dim, ans_dim_buf, 1);
+			if (ret < 0)
+				goto done;
+		}
+		PROTECT(startscounts);
+		ans = _h5mread_startscounts(&h5dset, startscounts, noreduce,
+					    method, ans_dim_buf);
+		UNPROTECT(1);
+
 	} else if (method <= 6) {
-		/* Implements methods 4 to 6. */
-		ans = _h5mread_index(&h5dset, starts,
-				     method, use_H5Dread_chunk,
-				     INTEGER(ans_dim));
+
+		/* --- Methods 4, 5, 6 (counts=NULL, as.sparse=FALSE) --- */
+
+		/* In the context of methods 5 & 6, 'chunk_iter.mem_vp.h5off'
+		   and 'chunk_iter.mem_vp.h5dim' will be used, not just
+		   'chunk_iter.mem_vp.off' and 'chunk_iter.mem_vp.dim',
+		   so we set 'alloc_full_mem_vp' (last arg) to 1. */
+		ChunkIterator chunk_iter;
+		ret = _init_ChunkIterator(&chunk_iter, &h5dset, starts,
+					  ans_dim_buf, method != 4);
+		if (ret < 0)
+			goto done;
+		if (!as_vec) {
+			ret = set_ans_dim(ans_dim, ans_dim_buf, 1);
+			if (ret < 0) {
+				_destroy_ChunkIterator(&chunk_iter);
+				goto done;
+			}
+		}
+		ans = _h5mread_index(&chunk_iter, method,
+				     use_H5Dread_chunk, ans_dim_buf);
+		PROTECT(ans);
+		_destroy_ChunkIterator(&chunk_iter);
+		UNPROTECT(1);
+
 	} else {
-		/* Implements method 7.
-		   Return 'list(nzindex, nzdata, NULL)' or R_NilValue if
+
+		/* --- Method 7 (counts=NULL, as.sparse=TRUE) --- */
+
+		/* In the context of method 7, 'chunk_iter.mem_vp.h5off'
+		   and 'chunk_iter.mem_vp.h5dim' won't be used, only
+		   'chunk_iter.mem_vp.off' and 'chunk_iter.mem_vp.dim',
+		   so we set 'alloc_full_mem_vp' (last arg) to 0. */
+		ChunkIterator chunk_iter;
+		ret = _init_ChunkIterator(&chunk_iter, &h5dset, starts,
+					  ans_dim_buf, 0);
+		if (ret < 0)
+			goto done;
+		/* 'as_vec' ignored. */
+		ret = set_ans_dim(ans_dim, ans_dim_buf, 0);
+		if (ret < 0) {
+			_destroy_ChunkIterator(&chunk_iter);
+			goto done;
+		}
+		/* Return 'list(nzindex, nzdata, NULL)' or R_NilValue if
 		   an error occured. */
-		ans = _h5mread_sparse(&h5dset, starts, INTEGER(ans_dim));
+		ans = _h5mread_sparse(&chunk_iter, ans_dim_buf);
+		PROTECT(ans);
+		_destroy_ChunkIterator(&chunk_iter);
+		UNPROTECT(1);
+
 	}
 
 	if (ans != R_NilValue) {
 		PROTECT(ans);
+		nprotected++;
 		if (as_sparse) {
 			if (h5type->Rtype == LGLSXP) {
 				fix_logical_NAs(VECTOR_ELT(ans, 2));
@@ -275,58 +369,58 @@ static SEXP h5mread(hid_t dset_id, SEXP starts, SEXP counts, int noreduce,
 		} else {
 			if (h5type->Rtype == LGLSXP)
 				fix_logical_NAs(ans);
-			SET_DIM(ans, ans_dim);
+			if (!as_vec)
+				SET_DIM(ans, ans_dim);
 		}
-		UNPROTECT(1);  /* 'ans' */
 	}
 
-	UNPROTECT(1);  /* 'ans_dim' */
-
-    on_error:
+    done:
 	_destroy_H5DSetDescriptor(&h5dset);
+	UNPROTECT(nprotected);
 	return ans;
 }
 
 /* --- .Call ENTRY POINT --- */
 SEXP C_h5mread(SEXP filepath, SEXP name,
 	       SEXP starts, SEXP counts, SEXP noreduce,
-	       SEXP as_integer, SEXP as_sparse,
+	       SEXP as_vector, SEXP as_integer, SEXP as_sparse,
 	       SEXP method, SEXP use_H5Dread_chunk)
 {
-	int noreduce0, as_int, as_sparse0, method0, use_H5Dread_chunk0;
-	hid_t file_id, dset_id;
-	SEXP ans;
-
 	/* Check 'noreduce'. */
 	if (!(IS_LOGICAL(noreduce) && LENGTH(noreduce) == 1))
 		error("'noreduce' must be TRUE or FALSE");
-	noreduce0 = LOGICAL(noreduce)[0];
+	int noreduce0 = LOGICAL(noreduce)[0];
+
+	/* Check 'as_vector'. */
+	if (!(IS_LOGICAL(as_vector) && LENGTH(as_vector) == 1))
+		error("'as.vector' must be TRUE or FALSE");
+	int as_vec = LOGICAL(as_vector)[0];
 
 	/* Check 'as_integer'. */
 	if (!(IS_LOGICAL(as_integer) && LENGTH(as_integer) == 1))
 		error("'as.integer' must be TRUE or FALSE");
-	as_int = LOGICAL(as_integer)[0];
+	int as_int = LOGICAL(as_integer)[0];
 
 	/* Check 'as_sparse'. */
 	if (!(IS_LOGICAL(as_sparse) && LENGTH(as_sparse) == 1))
 		error("'as.sparse' must be TRUE or FALSE");
-	as_sparse0 = LOGICAL(as_sparse)[0];
+	int as_sparse0 = LOGICAL(as_sparse)[0];
 
 	/* Check 'method'. */
 	if (!(IS_INTEGER(method) && LENGTH(method) == 1))
 		error("'method' must be a single integer");
-	method0 = INTEGER(method)[0];
+	int method0 = INTEGER(method)[0];
 
 	/* Check 'use_H5Dread_chunk'. */
 	if (!(IS_LOGICAL(use_H5Dread_chunk) && LENGTH(use_H5Dread_chunk) == 1))
 		error("'use.H5Dread_chunk' must be TRUE or FALSE");
-	use_H5Dread_chunk0 = LOGICAL(use_H5Dread_chunk)[0];
+	int use_H5Dread_chunk0 = LOGICAL(use_H5Dread_chunk)[0];
 
-	file_id = _get_file_id(filepath, 1);  /* read-only */
-	dset_id = _get_dset_id(file_id, name, filepath);
-	ans = PROTECT(h5mread(dset_id, starts, counts, noreduce0,
-			      as_int, as_sparse0,
-			      method0, use_H5Dread_chunk0));
+	hid_t file_id = _get_file_id(filepath, 1);  /* read-only */
+	hid_t dset_id = _get_dset_id(file_id, name, filepath);
+	SEXP ans = PROTECT(h5mread(dset_id, starts, counts, noreduce0,
+				   as_vec, as_int, as_sparse0,
+				   method0, use_H5Dread_chunk0));
 	H5Dclose(dset_id);
 	if (!isObject(filepath))
 		H5Fclose(file_id);

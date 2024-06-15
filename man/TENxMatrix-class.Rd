@@ -13,6 +13,10 @@
 
 \alias{coerce,TENxMatrix,dgCMatrix-method}
 \alias{coerce,TENxMatrix,sparseMatrix-method}
+\alias{coerce,TENxMatrix,SVT_SparseMatrix-method}
+\alias{coerce,TENxMatrix,SVT_SparseArray-method}
+\alias{coerce,TENxMatrix,SparseMatrix-method}
+\alias{coerce,TENxMatrix,SparseArray-method}
 
 \title{10x Genomics datasets as DelayedMatrix objects}
 
@@ -97,6 +101,31 @@ TENxMatrix(filepath, group="matrix")
 }
 
 \examples{
+## ---------------------------------------------------------------------
+## SIMPLE TENxMatrix EXAMPLE
+## ---------------------------------------------------------------------
+
+sm <- Matrix::rsparsematrix(10, 7, density=0.3)
+M <- writeTENxMatrix(sm)
+M
+
+class(M)  # TENxMatrix
+is(M, "DelayedMatrix")  # TRUE
+
+seed(M)
+class(seed(M))  # TENxMatrixSeed
+
+rhdf5::h5ls(path(M))
+
+is_sparse(M)  # TRUE
+
+## Use coercion to load the full dataset into memory:
+
+as.matrix(M)          # as ordinary array (usually not recommended)
+as(M, "dgCMatrix")    # as dgCMatrix (brings back 'sm')
+as(M, "SparseArray")  # as SparseArray object (most efficient)
+SparseArray(M)        # equivalent to 'as(M, "SparseArray")'
+
 ## ---------------------------------------------------------------------
 ## THE "1.3 Million Brain Cell Dataset" AS A DelayedMatrix OBJECT
 ## ---------------------------------------------------------------------

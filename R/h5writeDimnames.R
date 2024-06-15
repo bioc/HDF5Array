@@ -227,14 +227,8 @@ h5readDimnames <- function(filepath, name, as.character=FALSE)
            function(h5dn) {
                if (is.na(h5dn))
                    return(NULL)
-               dn <- h5mread(filepath, h5dn)
-               if (as.character) {
-                   ## as.character() drops all attributes so no need to
-                   ## explicitly drop the "dim" attribute.
-                   as.character(dn)
-               } else {
-                   S4Arrays:::set_dim(dn, NULL)
-               }
+               dn <- h5mread(filepath, h5dn, as.vector=TRUE)
+               if (as.character) as.character(dn) else dn
            })
 }
 
