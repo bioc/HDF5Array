@@ -740,14 +740,59 @@ setAs("CSR_H5SparseMatrixSeed", "sparseMatrix",
 ### Coercion to SVT_SparseMatrix
 ###
 
-.from_CSC_H5SparseMatrixSeed_to_SVT_SparseMatrix <- function(from)
+.load_CSC_H5SparseMatrixSeed_cols <- function(x, indptr, j1, j2)
 {
-    indptr <- .read_h5sparse_indptr(from@filepath, from@group)
-    data <- .read_h5sparse_data(from@filepath, from@group, from@subdata)
-    row_indices <- .read_h5sparse_indices(from@filepath, from@group)
-    SparseArray:::make_SVT_SparseMatrix_from_CSC(dim(from),
-                                                 indptr, data, row_indices)
+    #cat(j1, "-", j2, "\n")
+    offset <- indptr[[j1]]
+    start <- offset + 1L
+    count <- indptr[[j2 + 1L]] - offset
+
+    ans_dim <- c(nrow(x), j2 - j1 + 1L)
+    ans_indptr <- indptr[j1:(j2+1L)] - offset
+    ans_data <- .read_h5sparse_data(x@filepath, x@group, x@subdata,
+                                    start=start, count=count)
+    ans_row_indices <- .read_h5sparse_indices(x@filepath, x@group,
+                                    start=start, count=count)
+    SparseArray:::make_SVT_SparseMatrix_from_CSC(ans_dim,
+                                    ans_indptr, ans_data, ans_row_indices)
 }
+
+### SparseArray:::make_SVT_SparseMatrix_from_CSC() will fail if passed
+### 'data'/'indices' arguments that are long vectors because R does not
+### support passing long vectors to the .Call interface yet!
+### So we use a block strategy where we extract blocks of columns and convert
+### them to SVT_SparseMatrix objects, then cbind all the objects together.
+### By default, blocks are made of 125 millions data/indices elements.
+.load_CSC_H5SparseMatrixSeed_as_SVT_SparseMatrix <-
+    function(x, BLOCKSIZE=125000000L, BPPARAM=getAutoBPPARAM())
+{
+    indptr <- .read_h5sparse_indptr(x@filepath, x@group)
+    indptr_len <- length(indptr)
+    x_ncol <- indptr_len - 1L
+    nzcount <- indptr[[indptr_len]]
+    if (nzcount == 0L) {
+        data <- .read_h5sparse_data(x@filepath, x@group, x@subdata)
+        row_indices <- .read_h5sparse_indices(x@filepath, x@group)
+        SparseArray:::make_SVT_SparseMatrix_from_CSC(dim(x),
+                                                     indptr, data, row_indices)
+    }
+    nblock <- nzcount %/% BLOCKSIZE
+    if (nzcount %% BLOCKSIZE != 0L)
+        nblock <- nblock + 1L
+    chunks <- breakInChunks(x_ncol, nblock)
+    j1 <- start(chunks)
+    j2 <- end(chunks)
+    objects <- S4Arrays:::bplapply2(seq_len(nblock),
+        function(b, x, indptr, j1, j2)
+            .load_CSC_H5SparseMatrixSeed_cols(x, indptr, j1[[b]], j2[[b]]),
+        x, indptr, j1, j2,
+        BPPARAM=BPPARAM
+    )
+    do.call(cbind, objects)
+}
+
+.from_CSC_H5SparseMatrixSeed_to_SVT_SparseMatrix <- function(from)
+    .load_CSC_H5SparseMatrixSeed_as_SVT_SparseMatrix(from)
 
 setAs("CSC_H5SparseMatrixSeed", "SVT_SparseMatrix",
     .from_CSC_H5SparseMatrixSeed_to_SVT_SparseMatrix
