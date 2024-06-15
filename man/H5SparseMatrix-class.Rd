@@ -68,6 +68,9 @@ H5SparseMatrix(filepath, group)
 
     \item \code{\link{h5ls}} to list the content of an HDF5 file (\code{.h5}
           or \code{.h5ad}).
+
+    \item \link[SparseArray]{SparseArray} objects in the \pkg{SparseArray}
+          package.
   }
 }
 
@@ -91,9 +94,8 @@ path(M)
 is_sparse(M)  # TRUE
 
 ## Use coercion to load the full dataset into memory:
-
 as.matrix(M)          # as ordinary array (usually not recommended)
-as(M, "dgCMatrix")    # as dgCMatrix (brings back 'sm')
+as(M, "dgCMatrix")    # as dgCMatrix
 as(M, "SparseArray")  # as SparseArray object (most efficient)
 SparseArray(M)        # equivalent to 'as(M, "SparseArray")'
 }

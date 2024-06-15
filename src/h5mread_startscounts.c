@@ -274,7 +274,7 @@ static int read_data_3(const H5DSetDescriptor *h5dset,
 	int ndim = h5dset->ndim;
 	size_t *nchip_buf = R_alloc0_size_t_array(ndim);
 	size_t *midx_buf = R_alloc0_size_t_array(ndim);
-	
+
 	set_nchips(ndim, starts, ans_dim, 0, nchip_buf);
 
 	/* Allocate 'h5dset_vp' and 'mem_vp'. */

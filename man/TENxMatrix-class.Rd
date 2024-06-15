@@ -97,6 +97,9 @@ TENxMatrix(filepath, group="matrix")
 
     \item \link[IRanges]{NumericList} and \link[IRanges]{IntegerList}
           objects in the \pkg{IRanges} package.
+
+    \item \link[SparseArray]{SparseArray} objects in the \pkg{SparseArray}
+          package.
   }
 }
 
@@ -120,7 +123,6 @@ rhdf5::h5ls(path(M))
 is_sparse(M)  # TRUE
 
 ## Use coercion to load the full dataset into memory:
-
 as.matrix(M)          # as ordinary array (usually not recommended)
 as(M, "dgCMatrix")    # as dgCMatrix (brings back 'sm')
 as(M, "SparseArray")  # as SparseArray object (most efficient)

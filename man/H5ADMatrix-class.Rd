@@ -14,6 +14,10 @@
 
 \alias{coerce,H5ADMatrix,dgCMatrix-method}
 \alias{coerce,H5ADMatrix,sparseMatrix-method}
+\alias{coerce,H5ADMatrix,SVT_SparseMatrix-method}
+\alias{coerce,H5ADMatrix,SVT_SparseArray-method}
+\alias{coerce,H5ADMatrix,SparseMatrix-method}
+\alias{coerce,H5ADMatrix,SparseArray-method}
 
 \title{h5ad central matrices (or matrices in the /layers group)
        as DelayedMatrix objects}
@@ -81,6 +85,9 @@ H5ADMatrix(filepath, layer=NULL)
           the \pkg{zellkonverter} package for
           importing/exporting an \code{h5ad} file as/from a
           \link[SingleCellExperiment]{SingleCellExperiment} object.
+
+    \item \link[SparseArray]{SparseArray} objects in the \pkg{SparseArray}
+          package.
   }
 }
 
@@ -90,6 +97,25 @@ h5ad_file <- system.file("extdata", "krumsiek11.h5ad",
                          package="zellkonverter")
 X <- H5ADMatrix(h5ad_file)
 X
+
+class(X)  # H5ADMatrix
+is(X, "DelayedMatrix")  # TRUE
+
+class(seed(X))  # Dense_H5ADMatrixSeed
+
+dim(X)
+path(X)
+is_sparse(X)  # FALSE
+
+## Use coercion to load the full dataset into memory:
+as.matrix(X)          # as ordinary array (usually not recommended)
+
+\dontrun{
+  ## Works only if H5ADMatrix object is sparse!
+  as(X, "dgCMatrix")    # as dgCMatrix
+  as(X, "SparseArray")  # as SparseArray object (most efficient)
+  SparseArray(X)        # equivalent to 'as(X, "SparseArray")'
+}
 }
 \keyword{classes}
 \keyword{methods}
