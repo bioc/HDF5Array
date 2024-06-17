@@ -93,9 +93,12 @@ exportMethods(
     ## Methods for generics defined in the S4Arrays package:
     extract_array, is_sparse, "is_sparse<-",
 
+    ## Methods for generics defined in the SparseArray package:
+    nzcount,
+
     ## Methods for generics defined in the DelayedArray package:
     chunkdim, write_block,
-    sparsity, OLD_extract_sparse_array, read_sparse_block,
+    OLD_extract_sparse_array, read_sparse_block,
     matrixClass, DelayedArray,
     close
 )

@@ -7,7 +7,7 @@
 
 \alias{DelayedArray,H5ADMatrixSeed-method}
 
-\alias{sparsity,H5ADMatrix-method}
+\alias{nzcount,H5ADMatrix-method}
 \alias{read_sparse_block,H5ADMatrix-method}
 \alias{extractNonzeroDataByCol,H5ADMatrix-method}
 \alias{extractNonzeroDataByRow,H5ADMatrix-method}

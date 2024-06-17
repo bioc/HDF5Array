@@ -312,30 +312,30 @@ H5SparseMatrixSeed <- function(filepath, group, subdata=NULL,
     dim <- .get_sparse_matrix_dim(filepath, group, dim=dim)
 
     ## Get sparse layout to use ("CSC" or "CSR").
+    ## Note that R has the notions of rows and columns flipped w.r.t.
+    ## HDF5 so:
+    ## - "compressed sparse row" at the HDF5 level translates
+    ##   into "compressed sparse column" at the R level,
+    ## - "compressed sparse column" at the HDF5 level translates
+    ##   into "compressed sparse row" at the R level.
     layout <- .get_sparse_matrix_layout(filepath, group,
                                         sparse.layout=sparse.layout)
     if (layout == "CSC") {
-        expected_indptr_length <- dim[[2L]] + 1L
-        ## Because R has the notions of rows and columns flipped w.r.t.
-        ## HDF5, "compressed sparse row" at the HDF5 level translates
-        ## into "compressed sparse column" at the R level.
+        expected_indptr_len <- dim[[2L]] + 1L
         ans_class <- "CSC_H5SparseMatrixSeed"
     } else {
-        expected_indptr_length <- dim[[1L]] + 1L
-        ## Because R has the notions of rows and columns flipped w.r.t.
-        ## HDF5, "compressed sparse column" at the HDF5 level translates
-        ## into "compressed sparse row" at the R level.
+        expected_indptr_len <- dim[[1L]] + 1L
         ans_class <- "CSR_H5SparseMatrixSeed"
     }
 
     ## Get 'indptr_ranges'.
-    data_len <- h5length(filepath, .get_data_name(subdata, group))
+    nzcount <- h5length(filepath, .get_data_name(subdata, group))
     indices_len <- h5length(filepath, paste0(group, "/indices"))
-    stopifnot(data_len == indices_len)
+    stopifnot(indices_len == nzcount)
     indptr <- .read_h5sparse_indptr(filepath, group)
-    stopifnot(length(indptr) == expected_indptr_length,
+    stopifnot(length(indptr) == expected_indptr_len,
               indptr[[1L]] == 0L,
-              indptr[[length(indptr)]] == data_len)
+              indptr[[length(indptr)]] == nzcount)
     indptr_ranges <- data.frame(start=indptr[-length(indptr)] + 1,
                                 width=as.integer(diff(indptr)))
 
@@ -561,17 +561,13 @@ setMethod("chunkdim", "CSR_H5SparseMatrixSeed",
 ### Taking advantage of sparsity
 ###
 
-setMethod("sparsity", "H5SparseMatrixSeed",
-    function(x)
-    {
-        data_len <- h5length(x@filepath, .get_data_name(x@subdata, x@group))
-        1 - data_len / length(x)
-    }
-)
-
 ### This is about **structural** sparsity, not about quantitative sparsity
 ### measured by sparsity().
 setMethod("is_sparse", "H5SparseMatrixSeed", function(x) TRUE)
+
+setMethod("nzcount", "H5SparseMatrixSeed",
+    function(x) h5length(x@filepath, .get_data_name(x@subdata, x@group))
+)
 
 .OLD_extract_sparse_array_from_H5SparseMatrixSeed <- function(x, index)
 {
@@ -741,8 +737,10 @@ setAs("CSR_H5SparseMatrixSeed", "sparseMatrix",
 ###
 
 ### Load all columns from 'x'. Propagates dimnames(x).
-.load_CSC_H5SparseMatrixSeed_allcols <- function(x, x_indptr)
+.load_CSC_H5SparseMatrixSeed_allcols <- function(x)
 {
+    x_indptr <- c(0L, x@indptr_ranges[ , "start"] +
+                      x@indptr_ranges[ , "width"] - 1L)
     x_data <- .read_h5sparse_data(x@filepath, x@group, x@subdata)
     x_row_indices <- .read_h5sparse_indices(x@filepath, x@group)
     SparseArray:::make_SVT_SparseMatrix_from_CSC(dim(x),
@@ -751,17 +749,21 @@ setAs("CSR_H5SparseMatrixSeed", "sparseMatrix",
 }
 
 ### Load columns in the j1:j2 range. Does not propagate dimnames(x).
-.load_CSC_H5SparseMatrixSeed_j1j2cols <- function(x, x_indptr, j1, j2)
+.load_CSC_H5SparseMatrixSeed_j1j2cols <- function(x, j1, j2)
 {
     stopifnot(isSingleInteger(j1), 1L <= j1,
               isSingleInteger(j2), j1 <= j2)
 
     ans_dim <- c(nrow(x), j2 - j1 + 1L)
+    x_indptr <- c(0L, x@indptr_ranges[ , "start"] +
+                      x@indptr_ranges[ , "width"] - 1L)
     ix_offset <- x_indptr[[j1]]
     ans_indptr <- x_indptr[j1:(j2+1L)] - ix_offset
 
-    start <- ix_offset + 1L
-    count <- x_indptr[[j2 + 1L]] - ix_offset
+    #start <- ix_offset + 1L
+    #count <- x_indptr[[j2 + 1L]] - ix_offset
+    start <- x@indptr_ranges[ , "start"][j1:j2]
+    count <- x@indptr_ranges[ , "width"][j1:j2]
     ans_data <- .read_h5sparse_data(x@filepath, x@group, x@subdata,
                                     start=start, count=count)
     ans_row_indices <- .read_h5sparse_indices(x@filepath, x@group,
@@ -792,12 +794,9 @@ setAs("CSR_H5SparseMatrixSeed", "sparseMatrix",
     stopifnot(is(x, "CSC_H5SparseMatrixSeed"),
               isSingleInteger(DATABLOCKLEN), DATABLOCKLEN >= 1L)
 
-    x_indptr <- .read_h5sparse_indptr(x@filepath, x@group)
-    x_indptr_len <- length(x_indptr)
-    x_ncol <- x_indptr_len - 1L
-    x_nzcount <- x_indptr[[x_indptr_len]]
+    x_nzcount <- nzcount(x)
     if (x_nzcount <= DATABLOCKLEN)
-        return(.load_CSC_H5SparseMatrixSeed_allcols(x, x_indptr))
+        return(.load_CSC_H5SparseMatrixSeed_allcols(x))
 
     ## Compute 'nblock' (will always be >= 2).
     nblock <- x_nzcount %/% DATABLOCKLEN
@@ -805,9 +804,9 @@ setAs("CSR_H5SparseMatrixSeed", "sparseMatrix",
         nblock <- nblock + 1L
 
     ## Partition columns in j1:j2 ranges (nb of ranges is guaranteed to be
-    ## >= 1 and <= 'min(nblock, x_ncol)').
-    col_ranges <- breakInChunks(x_ncol, nblock)
-    ## There will be zero-width ranges if and only if 'nblock' > 'x_ncol'.
+    ## >= 1 and <= 'min(nblock, ncol(x))').
+    col_ranges <- breakInChunks(ncol(x), nblock)
+    ## There will be zero-width ranges if and only if 'nblock' > 'ncol(x)'.
     ## Drop them.
     col_ranges <- col_ranges[width(col_ranges) != 0L]
     j1 <- start(col_ranges)
@@ -815,11 +814,11 @@ setAs("CSR_H5SparseMatrixSeed", "sparseMatrix",
 
     ## Load ranges of columns into SVT_SparseMatrix objects.
     objects <- S4Arrays:::bplapply2(seq_along(col_ranges),
-        function(b, x, x_indptr, j1, j2) {
+        function(b, x, j1, j2) {
             #cat("Loading cols", j1, "-", j2, "...\n")
-            .load_CSC_H5SparseMatrixSeed_j1j2cols(x, x_indptr, j1[[b]], j2[[b]])
+            .load_CSC_H5SparseMatrixSeed_j1j2cols(x, j1[[b]], j2[[b]])
         },
-        x, x_indptr, j1, j2,
+        x, j1, j2,
         BPPARAM=BPPARAM
     )
 

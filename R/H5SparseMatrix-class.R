@@ -38,7 +38,7 @@ H5SparseMatrix <- function(filepath, group)
 ### Taking advantage of sparsity
 ###
 
-setMethod("sparsity", "H5SparseMatrix", function(x) sparsity(x@seed))
+setMethod("nzcount", "H5SparseMatrix", function(x) nzcount(x@seed))
 
 setMethod("read_sparse_block", "H5SparseMatrix",
     function(x, viewport) read_sparse_block(x@seed, viewport)

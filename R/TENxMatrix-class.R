@@ -46,7 +46,7 @@ TENxMatrix <- function(filepath, group="matrix")
 ### Taking advantage of sparsity
 ###
 
-setMethod("sparsity", "TENxMatrix", function(x) sparsity(x@seed))
+setMethod("nzcount", "TENxMatrix", function(x) nzcount(x@seed))
 
 setMethod("read_sparse_block", "TENxMatrix",
     function(x, viewport) read_sparse_block(x@seed, viewport)

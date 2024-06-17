@@ -7,7 +7,7 @@
 
 \alias{DelayedArray,TENxMatrixSeed-method}
 
-\alias{sparsity,TENxMatrix-method}
+\alias{nzcount,TENxMatrix-method}
 \alias{read_sparse_block,TENxMatrix-method}
 \alias{extractNonzeroDataByCol,TENxMatrix-method}
 
@@ -53,7 +53,7 @@ TENxMatrix(filepath, group="matrix")
 \details{
   In addition to all the methods defined for
   \link[DelayedArray]{DelayedMatrix} objects, TENxMatrix objects
-  support the following specialized methods: \code{sparsity()} and
+  support the following specialized methods: \code{nzcount()} and
   \code{extractNonzeroDataByCol()}. See \code{?\link{H5SparseMatrixSeed}}
   for more information about what these methods do.
 }
@@ -152,7 +152,7 @@ oneM
 is(oneM, "DelayedMatrix")  # TRUE
 seed(oneM)
 path(oneM)
-sparsity(oneM)
+nzcount(oneM)  # nb of nonzero values in the dataset
 
 ## Some examples of delayed operations:
 oneM != 0

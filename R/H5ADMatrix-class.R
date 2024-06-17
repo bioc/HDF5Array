@@ -40,7 +40,7 @@ H5ADMatrix <- function(filepath, layer=NULL)
 
 ### Will work only if the seed is an H5SparseMatrixSeed derivative, that is,
 ### if it's a CSC_H5ADMatrixSeed or CSR_H5ADMatrixSeed object.
-setMethod("sparsity", "H5ADMatrix", function(x) sparsity(x@seed))
+setMethod("nzcount", "H5ADMatrix", function(x) nzcount(x@seed))
 
 setMethod("read_sparse_block", "H5ADMatrix",
     function(x, viewport) read_sparse_block(x@seed, viewport)

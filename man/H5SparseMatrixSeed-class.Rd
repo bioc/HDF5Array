@@ -26,9 +26,8 @@
 \alias{chunkdim,CSC_H5SparseMatrixSeed-method}
 \alias{chunkdim,CSR_H5SparseMatrixSeed-method}
 
-\alias{sparsity}
-\alias{sparsity,H5SparseMatrixSeed-method}
 \alias{is_sparse,H5SparseMatrixSeed-method}
+\alias{nzcount,H5SparseMatrixSeed-method}
 \alias{OLD_extract_sparse_array,H5SparseMatrixSeed-method}
 \alias{read_sparse_block,H5SparseMatrixSeed-method}
 \alias{extractNonzeroDataByCol}
@@ -96,7 +95,7 @@ H5SparseMatrixSeed(filepath, group, subdata=NULL,
 
 \S4method{is_sparse}{H5SparseMatrixSeed}(x)
 
-\S4method{sparsity}{H5SparseMatrixSeed}(x)
+\S4method{nzcount}{H5SparseMatrixSeed}(x)
 }
 
 \arguments{
@@ -180,9 +179,8 @@ H5SparseMatrixSeed(filepath, group, subdata=NULL,
           \code{OLD_extract_sparse_array()}, \code{read_sparse_block()},
           \code{is_sparse()}: These generics are defined and documented
           in the \pkg{DelayedArray} package.
-    \item \code{sparsity()}: Returns the number of zero-valued matrix elements
-          in the object divided by its total number of elements (a.k.a. its
-          length).
+    \item \code{nzcount()}: Returns the number of nonzero values in the
+          object.
     \item \code{extractNonzeroDataByCol()}: Works on CSC_H5SparseMatrixSeed
           objects only. Returns a \link[IRanges]{NumericList} or
           \link[IRanges]{IntegerList} object \emph{parallel} to \code{j},
