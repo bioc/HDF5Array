@@ -94,7 +94,7 @@ exportMethods(
     extract_array, is_sparse, "is_sparse<-",
 
     ## Methods for generics defined in the SparseArray package:
-    nzcount,
+    nzcount, extract_sparse_array,
 
     ## Methods for generics defined in the DelayedArray package:
     chunkdim, write_block,

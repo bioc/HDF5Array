@@ -22,18 +22,14 @@
 \alias{path<-,H5SparseMatrixSeed-method}
 \alias{dim,H5SparseMatrixSeed-method}
 \alias{dimnames,H5SparseMatrixSeed-method}
-\alias{extract_array,H5SparseMatrixSeed-method}
 \alias{chunkdim,CSC_H5SparseMatrixSeed-method}
 \alias{chunkdim,CSR_H5SparseMatrixSeed-method}
-
 \alias{is_sparse,H5SparseMatrixSeed-method}
 \alias{nzcount,H5SparseMatrixSeed-method}
-\alias{OLD_extract_sparse_array,H5SparseMatrixSeed-method}
-\alias{read_sparse_block,H5SparseMatrixSeed-method}
-\alias{extractNonzeroDataByCol}
-\alias{extractNonzeroDataByCol,CSC_H5SparseMatrixSeed-method}
-\alias{extractNonzeroDataByRow}
-\alias{extractNonzeroDataByRow,CSR_H5SparseMatrixSeed-method}
+
+\alias{extract_sparse_array,CSC_H5SparseMatrixSeed-method}
+\alias{extract_sparse_array,CSR_H5SparseMatrixSeed-method}
+\alias{extract_array,H5SparseMatrixSeed-method}
 
 \alias{coerce,CSC_H5SparseMatrixSeed,dgCMatrix-method}
 \alias{coerce,CSC_H5SparseMatrixSeed,sparseMatrix-method}
@@ -43,6 +39,14 @@
 \alias{coerce,CSC_H5SparseMatrixSeed,SVT_SparseArray-method}
 
 \alias{show,H5SparseMatrixSeed-method}
+
+% OLD STUFF
+\alias{OLD_extract_sparse_array,H5SparseMatrixSeed-method}
+\alias{read_sparse_block,H5SparseMatrixSeed-method}
+\alias{extractNonzeroDataByCol}
+\alias{extractNonzeroDataByCol,CSC_H5SparseMatrixSeed-method}
+\alias{extractNonzeroDataByRow}
+\alias{extractNonzeroDataByRow,CSR_H5SparseMatrixSeed-method}
 
 \title{H5SparseMatrixSeed objects}
 

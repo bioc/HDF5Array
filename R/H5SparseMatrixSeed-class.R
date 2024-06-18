@@ -61,7 +61,7 @@ setClass("CSR_H5SparseMatrixSeed", contains="H5SparseMatrixSeed")
 t.CSC_H5SparseMatrixSeed <- function(x)
 {
     x@dim <- rev(x@dim)
-    class(x) <- "CSR_H5SparseMatrixSeed"
+    class(x) <- class(new("CSR_H5SparseMatrixSeed"))
     x
 }
 setMethod("t", "CSC_H5SparseMatrixSeed", t.CSC_H5SparseMatrixSeed)
@@ -70,7 +70,7 @@ setMethod("t", "CSC_H5SparseMatrixSeed", t.CSC_H5SparseMatrixSeed)
 t.CSR_H5SparseMatrixSeed <- function(x)
 {
     x@dim <- rev(x@dim)
-    class(x) <- "CSC_H5SparseMatrixSeed"
+    class(x) <- class(new("CSC_H5SparseMatrixSeed"))
     x
 }
 setMethod("t", "CSR_H5SparseMatrixSeed", t.CSR_H5SparseMatrixSeed)
@@ -109,6 +109,33 @@ setMethod("dim", "H5SparseMatrixSeed", function(x) x@dim)
 
 setMethod("dimnames", "H5SparseMatrixSeed",
     function(x) S4Arrays:::simplify_NULL_dimnames(x@dimnames)
+)
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### chunkdim() getter
+###
+
+### Does NOT access the file.
+setMethod("chunkdim", "CSC_H5SparseMatrixSeed",
+    function(x) c(nrow(x), min(ncol(x), 1L))
+)
+
+setMethod("chunkdim", "CSR_H5SparseMatrixSeed",
+    function(x) c(min(nrow(x), 1L), ncol(x))
+)
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### is_sparse() and nzcount() methods
+###
+
+### This is about **structural** sparsity, not about quantitative sparsity
+### measured by sparsity().
+setMethod("is_sparse", "H5SparseMatrixSeed", function(x) TRUE)
+
+setMethod("nzcount", "H5SparseMatrixSeed",
+    function(x) h5length(x@filepath, .get_data_name(x@subdata, x@group))
 )
 
 
@@ -345,7 +372,214 @@ H5SparseMatrixSeed <- function(filepath, group, subdata=NULL,
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### .load_CSC_H5SparseMatrixSeed
+###
+### Loads CSC_H5SparseMatrixSeed object 'x' into memory as a SVT_SparseMatrix
+### object, or selected columns only.
+### This is the workhorse behind the extract_sparse_array(), extract_array(),
+### and read_block_as_sparse() methods for H5SparseMatrixSeed objects, as
+### well as behind coercion from CSC_H5SparseMatrixSeed to SVT_SparseMatrix.
+### Does NOT propagate the dimnames.
+###
+### Notes:
+### - SparseArray:::make_SVT_SparseMatrix_from_CSC() will fail if
+###   passed 'data'/'indices' arguments that are long vectors because R
+###   does not support passing long vectors to the .Call interface yet!
+###   So we use a block strategy where we load blocks of adjacent columns
+###   and convert them to SVT_SparseMatrix objects, then cbind() all the
+###   objects together. By default, blocks are made of 125 millions
+###   data/indices elements.
+### - Supports parallelization via the 'BPPARAM' argument. However some
+###   quick testing with 'BiocParallel::MulticoreParam(2)' on a powerful
+###   Linux server seemed to indicate that it's not worth it. Execution
+###   time remained about the same but memory footprint increased
+###   significantly!
+
+.load_CSC_H5SparseMatrixSeed <- function(x, j=NULL,
+                                         DATABLOCKLEN=125000000L,
+                                         BPPARAM=NULL)
+{
+    stopifnot(is(x, "CSC_H5SparseMatrixSeed"),
+              isSingleInteger(DATABLOCKLEN), DATABLOCKLEN >= 0L)
+    if (is.null(j)) {
+        ans_ncol <- ncol(x)
+        w <- x@indptr_ranges[ , "width"]
+    } else {
+        stopifnot(is.integer(j))
+        ans_ncol <- length(j)
+        if (ans_ncol != 0L)
+            stopifnot(isStrictlySorted(j),
+                      1L <= j[[1L]], j[[ans_ncol]] <= ncol(x))
+        w <- x@indptr_ranges[j , "width"]
+    }
+    ans_dim <- c(nrow(x), ans_ncol)
+    ans_indptr <- c(0L, cumsum(w))
+    ans_nzcount <- ans_indptr[[length(ans_indptr)]]
+
+    ## DATABLOCKLEN == 0L means no block processing.
+    if (DATABLOCKLEN == 0L || ans_nzcount <= DATABLOCKLEN) {
+        if (is.null(j)) {
+            start <- count <- NULL
+        } else {
+            start <- x@indptr_ranges[j, "start"]
+            count <- x@indptr_ranges[j, "width"]
+        }
+        ans_data <- .read_h5sparse_data(x@filepath, x@group, x@subdata,
+                                        start=start, count=count)
+        ans_row_indices <- .read_h5sparse_indices(x@filepath, x@group,
+                                        start=start, count=count)
+        ans <- SparseArray:::make_SVT_SparseMatrix_from_CSC(ans_dim,
+                                        ans_indptr, ans_data, ans_row_indices)
+        return(ans)
+    }
+
+    ## Compute 'nblock' (will always be >= 2).
+    nblock <- ans_nzcount %/% DATABLOCKLEN
+    if (ans_nzcount %% DATABLOCKLEN != 0L)
+        nblock <- nblock + 1L
+
+    ## Partition column indices in ranges (nb of ranges is guaranteed to be
+    ## >= 1 and <= 'min(nblock, ans_ncol)').
+    col_ranges <- breakInChunks(ans_ncol, nblock)
+    ## There will be zero-width ranges if and only if 'nblock' > 'ans_ncol'.
+    ## Drop them.
+    col_ranges <- col_ranges[width(col_ranges) != 0L]
+    s <- start(col_ranges)
+    e <- end(col_ranges)
+
+    ## Load ranges of columns into SVT_SparseMatrix objects.
+    objects <- S4Arrays:::bplapply2(seq_along(col_ranges),
+        function(b, x, j, s, e) {
+            k1 <- s[[b]]
+            k2 <- e[[b]]
+            jj <- if (is.null(j)) k1:k2 else j[k1:k2]
+            ## Set 'DATABLOCKLEN' to 0L to disable block processing.
+            .load_CSC_H5SparseMatrixSeed(x, jj, DATABLOCKLEN=0L)
+        },
+        x, j, s, e,
+        BPPARAM=BPPARAM
+    )
+
+    ## Combine all objects together.
+    do.call(cbind, objects)
+}
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### extract_sparse_array() and extract_array() methods
+###
+
+.extract_sparse_array_from_CSC_H5SparseMatrixSeed <- function(x, index)
+{
+    j <- index[[2L]]
+    if (!is.null(j)) {
+        if (!is.integer(j))
+            j <- as.integer(j)
+        sort_j <- !isStrictlySorted(j)
+        if (sort_j) {
+            j0 <- j
+            j <- unique(sort(j))
+        }
+    }
+    svt <- .load_CSC_H5SparseMatrixSeed(x, j=j)
+    index2 <- list(index[[1L]], NULL)
+    if (!is.null(j) && sort_j)
+        index2[[2L]] <- match(j0, j)
+    extract_sparse_array(svt, index2)
+}
+
+setMethod("extract_sparse_array", "CSC_H5SparseMatrixSeed",
+    function(x, index)
+        .extract_sparse_array_from_CSC_H5SparseMatrixSeed(x, index)
+)
+
+setMethod("extract_sparse_array", "CSR_H5SparseMatrixSeed",
+    function(x, index)
+        t(.extract_sparse_array_from_CSC_H5SparseMatrixSeed(t(x), rev(index)))
+)
+
+setMethod("extract_array", "H5SparseMatrixSeed",
+    function(x, index) as.array(extract_sparse_array(x, index))
+)
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### Coercion to dgCMatrix
+###
+
+.from_CSC_H5SparseMatrixSeed_to_dgCMatrix <- function(from)
+{
+    indptr <- .read_h5sparse_indptr(from@filepath, from@group)
+    data <- .read_h5sparse_data(from@filepath, from@group, from@subdata)
+    row_indices <- .read_h5sparse_indices(from@filepath, from@group)
+    sparseMatrix(i=row_indices, p=indptr, x=data, dims=dim(from),
+                 dimnames=dimnames(from))
+}
+
+setAs("CSC_H5SparseMatrixSeed", "dgCMatrix",
+    .from_CSC_H5SparseMatrixSeed_to_dgCMatrix
+)
+setAs("CSC_H5SparseMatrixSeed", "sparseMatrix",
+    .from_CSC_H5SparseMatrixSeed_to_dgCMatrix
+)
+
+.from_CSR_H5SparseMatrixSeed_to_dgCMatrix <- function(from)
+{
+    indptr <- .read_h5sparse_indptr(from@filepath, from@group)
+    data <- .read_h5sparse_data(from@filepath, from@group, from@subdata)
+    col_indices <- .read_h5sparse_indices(from@filepath, from@group)
+    sparseMatrix(j=col_indices, p=indptr, x=data, dims=dim(from),
+                 dimnames=dimnames(from))
+}
+
+setAs("CSR_H5SparseMatrixSeed", "dgCMatrix",
+    .from_CSR_H5SparseMatrixSeed_to_dgCMatrix
+)
+setAs("CSR_H5SparseMatrixSeed", "sparseMatrix",
+    .from_CSR_H5SparseMatrixSeed_to_dgCMatrix
+)
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### Coercion to SVT_SparseMatrix
+###
+
+.from_CSC_H5SparseMatrixSeed_to_SVT_SparseMatrix <- function(from)
+    S4Arrays:::set_dimnames(.load_CSC_H5SparseMatrixSeed(from), dimnames(from))
+
+setAs("CSC_H5SparseMatrixSeed", "SVT_SparseMatrix",
+    .from_CSC_H5SparseMatrixSeed_to_SVT_SparseMatrix
+)
+setAs("CSC_H5SparseMatrixSeed", "SVT_SparseArray",
+    .from_CSC_H5SparseMatrixSeed_to_SVT_SparseMatrix
+)
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### Show
+###
+
+setMethod("show", "H5SparseMatrixSeed",
+    function(object)
+    {
+        cat(S4Arrays:::array_as_one_line_summary(object), ":\n", sep="")
+        cat("# dirname: ", dirname(object), "\n", sep="")
+        cat("# basename: ", basename(object), "\n", sep="")
+        cat("# group: ", object@group, "\n", sep="")
+    }
+)
+
+
+### -------------------------------------------------------------------------
+### OLD STUFF. To be deprecated soon!
+### -------------------------------------------------------------------------
+
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### .get_data_indices_by_col()
+###
+### Used by .load_sparse_data(), extractNonzeroDataByCol(), and
+### extractNonzeroDataByRow() defined below in this file.
 ###
 
 ### base::sequence() does not properly handle a 'from' that is >
@@ -379,6 +613,9 @@ H5SparseMatrixSeed <- function(filepath, group, subdata=NULL,
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### .extract_data_from_adjacent_cols()
 ###
+### Used by .load_sparse_data(), extractNonzeroDataByCol(), and
+### extractNonzeroDataByRow() defined below in this file.
+###
 
 ### 'j1' and 'j2' must be 2 single integers representing a valid range of
 ### col indices.
@@ -406,9 +643,8 @@ H5SparseMatrixSeed <- function(filepath, group, subdata=NULL,
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### .load_sparse_data()
 ###
-### This internal generic is the workhorse behind the extract_array(),
-### OLD_extract_sparse_array(), and read_sparse_block() methods for
-### H5SparseMatrixSeed objects.
+### Used by the OLD_extract_sparse_array() and read_sparse_block() methods
+### for H5SparseMatrixSeed objects defined below in this file.
 ###
 
 ### Load sparse data using the "random" method.
@@ -522,52 +758,10 @@ setMethod(".load_sparse_data", "CSR_H5SparseMatrixSeed",
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### extract_array()
+### OLD_extract_sparse_array() and read_sparse_block() methods
 ###
-
-.extract_array_from_H5SparseMatrixSeed <- function(x, index)
-{
-    ans_dim <- S4Arrays:::get_Nindex_lengths(index, dim(x))
-    if (any(ans_dim == 0L)) {
-        ## Return an empty matrix.
-        data0 <- .read_h5sparse_data(x@filepath, x@group, x@subdata,
-                                     start=integer(0))
-        return(array(data0, dim=ans_dim))
-    }
-    sas <- .load_sparse_data(x, index)  # I/O
-    extract_array(sas, index)  # in-memory
-}
-
-setMethod("extract_array", "H5SparseMatrixSeed",
-    .extract_array_from_H5SparseMatrixSeed
-)
-
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### chunkdim() getter
+### TODO: Deprecate this stuff.
 ###
-
-### Does NOT access the file.
-setMethod("chunkdim", "CSC_H5SparseMatrixSeed",
-    function(x) c(nrow(x), min(ncol(x), 1L))
-)
-
-setMethod("chunkdim", "CSR_H5SparseMatrixSeed",
-    function(x) c(min(nrow(x), 1L), ncol(x))
-)
-
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### Taking advantage of sparsity
-###
-
-### This is about **structural** sparsity, not about quantitative sparsity
-### measured by sparsity().
-setMethod("is_sparse", "H5SparseMatrixSeed", function(x) TRUE)
-
-setMethod("nzcount", "H5SparseMatrixSeed",
-    function(x) h5length(x@filepath, .get_data_name(x@subdata, x@group))
-)
 
 .OLD_extract_sparse_array_from_H5SparseMatrixSeed <- function(x, index)
 {
@@ -610,8 +804,9 @@ setMethod("read_sparse_block", "H5SparseMatrixSeed",
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### extractNonzeroDataByCol() and extractNonzeroDataByRow()
 ###
-### Spelling: "nonzero" preferred over "non-zero". See:
-###   https://gcc.gnu.org/ml/gcc/2001-10/msg00610.html
+### TODO: Deprecate these 2 generics and their methods. These 2 generics are
+### weird and don't have good or strong use cases. I suspect nobody uses them
+### nor is aware of them.
 ###
 
 ### Extract nonzero data using the "random" method.
@@ -691,163 +886,6 @@ setMethod("extractNonzeroDataByRow", "CSR_H5SparseMatrixSeed",
         i <- S4Arrays:::normalizeSingleBracketSubscript2(i, nrow(x),
                                                          rownames(x))
         .extract_nonzero_csc_sparse_data_by_col(t(x), i)
-    }
-)
-
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### Coercion to dgCMatrix
-###
-
-.from_CSC_H5SparseMatrixSeed_to_dgCMatrix <- function(from)
-{
-    indptr <- .read_h5sparse_indptr(from@filepath, from@group)
-    data <- .read_h5sparse_data(from@filepath, from@group, from@subdata)
-    row_indices <- .read_h5sparse_indices(from@filepath, from@group)
-    sparseMatrix(i=row_indices, p=indptr, x=data, dims=dim(from),
-                 dimnames=dimnames(from))
-}
-
-setAs("CSC_H5SparseMatrixSeed", "dgCMatrix",
-    .from_CSC_H5SparseMatrixSeed_to_dgCMatrix
-)
-setAs("CSC_H5SparseMatrixSeed", "sparseMatrix",
-    .from_CSC_H5SparseMatrixSeed_to_dgCMatrix
-)
-
-.from_CSR_H5SparseMatrixSeed_to_dgCMatrix <- function(from)
-{
-    indptr <- .read_h5sparse_indptr(from@filepath, from@group)
-    data <- .read_h5sparse_data(from@filepath, from@group, from@subdata)
-    col_indices <- .read_h5sparse_indices(from@filepath, from@group)
-    sparseMatrix(j=col_indices, p=indptr, x=data, dims=dim(from),
-                 dimnames=dimnames(from))
-}
-
-setAs("CSR_H5SparseMatrixSeed", "dgCMatrix",
-    .from_CSR_H5SparseMatrixSeed_to_dgCMatrix
-)
-setAs("CSR_H5SparseMatrixSeed", "sparseMatrix",
-    .from_CSR_H5SparseMatrixSeed_to_dgCMatrix
-)
-
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### Coercion to SVT_SparseMatrix
-###
-
-### Load all columns from 'x'. Propagates dimnames(x).
-.load_CSC_H5SparseMatrixSeed_allcols <- function(x)
-{
-    x_indptr <- c(0L, x@indptr_ranges[ , "start"] +
-                      x@indptr_ranges[ , "width"] - 1L)
-    x_data <- .read_h5sparse_data(x@filepath, x@group, x@subdata)
-    x_row_indices <- .read_h5sparse_indices(x@filepath, x@group)
-    SparseArray:::make_SVT_SparseMatrix_from_CSC(dim(x),
-                                        x_indptr, x_data, x_row_indices,
-                                        dimnames(x))
-}
-
-### Load columns in the j1:j2 range. Does not propagate dimnames(x).
-.load_CSC_H5SparseMatrixSeed_j1j2cols <- function(x, j1, j2)
-{
-    stopifnot(isSingleInteger(j1), 1L <= j1,
-              isSingleInteger(j2), j1 <= j2)
-
-    ans_dim <- c(nrow(x), j2 - j1 + 1L)
-    x_indptr <- c(0L, x@indptr_ranges[ , "start"] +
-                      x@indptr_ranges[ , "width"] - 1L)
-    ix_offset <- x_indptr[[j1]]
-    ans_indptr <- x_indptr[j1:(j2+1L)] - ix_offset
-
-    #start <- ix_offset + 1L
-    #count <- x_indptr[[j2 + 1L]] - ix_offset
-    start <- x@indptr_ranges[ , "start"][j1:j2]
-    count <- x@indptr_ranges[ , "width"][j1:j2]
-    ans_data <- .read_h5sparse_data(x@filepath, x@group, x@subdata,
-                                    start=start, count=count)
-    ans_row_indices <- .read_h5sparse_indices(x@filepath, x@group,
-                                              start=start, count=count)
-
-    SparseArray:::make_SVT_SparseMatrix_from_CSC(ans_dim,
-                                        ans_indptr, ans_data, ans_row_indices)
-}
-
-### Loads the sparse data stored in a CSC_H5SparseMatrixSeed object into
-### memory as a SVT_SparseMatrix object.
-### Notes
-### - SparseArray:::make_SVT_SparseMatrix_from_CSC() will fail if
-###   passed 'data'/'indices' arguments that are long vectors because R
-###   does not support passing long vectors to the .Call interface yet!
-###   So we use a block strategy where we load blocks of adjacent columns
-###   and convert them to SVT_SparseMatrix objects, then cbind() all the
-###   objects together. By default, blocks are made of 125 millions
-###   data/indices elements.
-### - Supports parallelization via the 'BPPARAM' argument. However some
-###   quick testing with 'BiocParallel::MulticoreParam(2)' on a powerful
-###   Linux server seemed to indicate that it's not worth it. Execution
-###   time remained about the same but memory footprint increased
-###   significantly!
-.load_CSC_H5SparseMatrixSeed <- function(x, DATABLOCKLEN=125000000L,
-                                            BPPARAM=NULL)
-{
-    stopifnot(is(x, "CSC_H5SparseMatrixSeed"),
-              isSingleInteger(DATABLOCKLEN), DATABLOCKLEN >= 1L)
-
-    x_nzcount <- nzcount(x)
-    if (x_nzcount <= DATABLOCKLEN)
-        return(.load_CSC_H5SparseMatrixSeed_allcols(x))
-
-    ## Compute 'nblock' (will always be >= 2).
-    nblock <- x_nzcount %/% DATABLOCKLEN
-    if (x_nzcount %% DATABLOCKLEN != 0L)
-        nblock <- nblock + 1L
-
-    ## Partition columns in j1:j2 ranges (nb of ranges is guaranteed to be
-    ## >= 1 and <= 'min(nblock, ncol(x))').
-    col_ranges <- breakInChunks(ncol(x), nblock)
-    ## There will be zero-width ranges if and only if 'nblock' > 'ncol(x)'.
-    ## Drop them.
-    col_ranges <- col_ranges[width(col_ranges) != 0L]
-    j1 <- start(col_ranges)
-    j2 <- end(col_ranges)
-
-    ## Load ranges of columns into SVT_SparseMatrix objects.
-    objects <- S4Arrays:::bplapply2(seq_along(col_ranges),
-        function(b, x, j1, j2) {
-            #cat("Loading cols", j1, "-", j2, "...\n")
-            .load_CSC_H5SparseMatrixSeed_j1j2cols(x, j1[[b]], j2[[b]])
-        },
-        x, j1, j2,
-        BPPARAM=BPPARAM
-    )
-
-    ## Combine all objects together (with cbind()) and add the dimnames.
-    S4Arrays:::set_dimnames(do.call(cbind, objects), dimnames(x))
-}
-
-.from_CSC_H5SparseMatrixSeed_to_SVT_SparseMatrix <- function(from)
-    .load_CSC_H5SparseMatrixSeed(from)
-
-setAs("CSC_H5SparseMatrixSeed", "SVT_SparseMatrix",
-    .from_CSC_H5SparseMatrixSeed_to_SVT_SparseMatrix
-)
-setAs("CSC_H5SparseMatrixSeed", "SVT_SparseArray",
-    .from_CSC_H5SparseMatrixSeed_to_SVT_SparseMatrix
-)
-
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### Show
-###
-
-setMethod("show", "H5SparseMatrixSeed",
-    function(object)
-    {
-        cat(S4Arrays:::array_as_one_line_summary(object), ":\n", sep="")
-        cat("# dirname: ", dirname(object), "\n", sep="")
-        cat("# basename: ", basename(object), "\n", sep="")
-        cat("# group: ", object@group, "\n", sep="")
     }
 )
 
