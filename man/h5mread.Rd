@@ -97,7 +97,9 @@ get_h5mread_returned_type(filepath, name, as.integer=FALSE)
 }
 
 \value{
-  \code{h5mread()} returns an ordinary array or vector.
+  \code{h5mread()} returns an ordinary array or vector if \code{as.sparse}
+  is \code{FALSE} (the default), and a \link[SparseArray]{COO_SparseArray}
+  object if \code{as.sparse} is \code{TRUE}.
 
   \code{get_h5mread_returned_type()} returns the type of the array or
   vector that will be returned by \code{h5mread()}.
@@ -114,6 +116,9 @@ get_h5mread_returned_type(filepath, name, as.integer=FALSE)
     \item \code{\link[rhdf5]{h5read}} in the \pkg{rhdf5} package.
 
     \item \code{\link[S4Arrays]{extract_array}} in the \pkg{S4Arrays}
+          package.
+
+    \item \link[SparseArray]{COO_SparseArray} objects in the \pkg{SparseArray}
           package.
 
     \item The \code{\link[TENxBrainData]{TENxBrainData}} dataset (in the
@@ -159,10 +164,10 @@ M1 <- writeHDF5Array(m1, name="M1", chunkdim=c(3L, 2L))
 
 index <- list(5:3, NULL)
 m <- h5mread(path(M1), "M1", starts=index)
-sas <- h5mread(path(M1), "M1", starts=index, as.sparse=TRUE)
-class(sas)  # SparseArraySeed object (see ?SparseArraySeed)
-as(sas, "dgCMatrix")
-stopifnot(identical(m, sparse2dense(sas)))
+coo <- h5mread(path(M1), "M1", starts=index, as.sparse=TRUE)
+class(coo)  # COO_SparseArray object (see ?COO_SparseArray)
+as(coo, "dgCMatrix")
+stopifnot(identical(m, as.array(coo)))
 
 ## ---------------------------------------------------------------------
 ## PERFORMANCE
@@ -200,21 +205,21 @@ system.time(b <- h5read(fname1, "counts", index=index))
 stopifnot(identical(a, b))
 
 ## Alternatively 'as.sparse=TRUE' can be used to reduce memory usage:
-system.time(sas <- h5mread(fname1, "counts", index, as.sparse=TRUE))
-stopifnot(identical(a, sparse2dense(sas)))
+system.time(coo <- h5mread(fname1, "counts", index, as.sparse=TRUE))
+stopifnot(identical(a, as.array(coo)))
 
 ## The bigger the selection, the greater the speedup between
 ## h5read() and h5mread():
 \dontrun{
   index <- list(sample(27998, 1000), sample(1306127, 1000))
-  ## h5mread() about 8x faster than h5read() (20s vs 2m30s):
+  ## h5mread() about 4x faster than h5read() (12s vs 48s):
   system.time(a <- h5mread(fname1, "counts", index))
   system.time(b <- h5read(fname1, "counts", index=index))
   stopifnot(identical(a, b))
 
   ## With 'as.sparse=TRUE' (about the same speed as with 'as.sparse=FALSE'):
-  system.time(sas <- h5mread(fname1, "counts", index, as.sparse=TRUE))
-  stopifnot(identical(a, sparse2dense(sas)))
+  system.time(coo <- h5mread(fname1, "counts", index, as.sparse=TRUE))
+  stopifnot(identical(a, as.array(coo)))
 }
 }
 \keyword{utilities}

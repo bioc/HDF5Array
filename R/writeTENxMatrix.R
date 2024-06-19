@@ -227,20 +227,20 @@ setMethod("write_block", "TENxRealizationSink",
     function(sink, viewport, block)
     {
         .check_viewport(viewport, sink)
-        if (!is(block, "SparseArraySeed"))
-            block <- as(block, "SparseArraySeed")
+        if (!is(block, "COO_SparseArray"))
+            block <- as(block, "COO_SparseArray")
 
         ## Append the nonzero data.
         new_data_len1 <- .append_data(sink@filepath, sink@group, block@nzdata)
 
         ## Append the 0-based row indices of the nonzero data.
         new_data_len2 <- .append_row_indices(sink@filepath, sink@group,
-                                             block@nzindex[ , 1L] - 1L)
+                                             block@nzcoo[ , 1L] - 1L)
         stopifnot(new_data_len2 == new_data_len1)  # sanity check
 
         ## Append the "indptr" values.
         new_data_len3 <- .append_indptr(sink@filepath, sink@group,
-                                        block@nzindex[ , 2L],
+                                        block@nzcoo[ , 2L],
                                         ncol(viewport))
         stopifnot(new_data_len3 == new_data_len1)  # sanity check
         sink

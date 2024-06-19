@@ -619,9 +619,9 @@ setMethod("show", "H5SparseMatrixSeed",
 
 ### 'j1' and 'j2' must be 2 single integers representing a valid range of
 ### col indices.
-### If 'as.sparse=FALSE', return a NumericList or IntegerList object parallel
+### If 'as.sparse=FALSE', returns a NumericList or IntegerList object parallel
 ### to 'j1:j2' i.e. with one list element per col index in 'j1:j2'.
-### If 'as.sparse=TRUE', return a SparseArraySeed object.
+### If 'as.sparse=TRUE', returns a SparseArraySeed object.
 .extract_data_from_adjacent_cols <- function(x, j1, j2, as.sparse=FALSE)
 {
     j12 <- j1:j2
@@ -647,7 +647,7 @@ setMethod("show", "H5SparseMatrixSeed",
 ### for H5SparseMatrixSeed objects defined below in this file.
 ###
 
-### Load sparse data using the "random" method.
+### Loads sparse data using the "random" method.
 ### This method is based on h5mread( , starts=list(start)) which retrieves
 ### an arbitrary/random subset of the data.
 ### 'i' must be NULL or an integer vector containing valid row indices.
@@ -655,7 +655,7 @@ setMethod("show", "H5SparseMatrixSeed",
 ### be NULL.
 ### Both 'i' and 'j' can contain duplicates. Duplicates in 'i' have no effect
 ### on the output but duplicates in 'j' will produce duplicates in the output.
-### Return a SparseArraySeed object.
+### Returns a SparseArraySeed object.
 .load_random_csc_sparse_data <- function(x, i, j)
 {
     stopifnot(is.null(i) || is.numeric(i), is.numeric(j))
@@ -675,13 +675,13 @@ setMethod("show", "H5SparseMatrixSeed",
     SparseArraySeed(dim(x), ans_nzindex, ans_nzdata, check=FALSE)
 }
 
-### Load sparse data using the "linear" method.
+### Loads sparse data using the "linear" method.
 ### This method is based on h5mread( , starts=list(start), counts=list(count))
 ### which retrieves a linear subset of the data and should be more efficient
 ### than doing h5mread( , starts=list(seq(start, length.out=count))).
 ### 'j' must be NULL or a non-empty integer vector containing valid
 ### col indices. The output is not affected by duplicates in 'j'.
-### Return a SparseArraySeed object.
+### Returns a SparseArraySeed object.
 .load_linear_csc_sparse_data <- function(x, j)
 {
     if (is.null(j)) {
@@ -720,7 +720,7 @@ setMethod("show", "H5SparseMatrixSeed",
 ### Duplicates in 'index[[1]]' are ok and won't affect the output.
 ### Duplicates in 'index[[2]]' are ok but might introduce duplicates
 ### in the output so should be avoided.
-### Return a SparseArraySeed object.
+### Returns a SparseArraySeed object.
 .load_csc_sparse_data <- function(x, index, method)
 {
     i <- index[[1L]]
@@ -734,7 +734,7 @@ setMethod("show", "H5SparseMatrixSeed",
     ans
 }
 
-### Return a SparseArraySeed object.
+### Returns a SparseArraySeed object.
 setGeneric(".load_sparse_data", signature="x",
     function(x, index, method=c("auto", "random", "linear"))
         standardGeneric(".load_sparse_data")

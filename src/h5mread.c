@@ -344,7 +344,7 @@ static SEXP h5mread(hid_t dset_id, SEXP starts, SEXP counts, int noreduce,
 			_destroy_ChunkIterator(&chunk_iter);
 			goto done;
 		}
-		/* Return 'list(nzindex, nzdata, NULL)' or R_NilValue if
+		/* Return 'list(NULL, nzcoo, nzdata)' or R_NilValue if
 		   an error occured. */
 		ans = _h5mread_sparse(&chunk_iter, ans_dim_buf);
 		PROTECT(ans);
@@ -364,7 +364,7 @@ static SEXP h5mread(hid_t dset_id, SEXP starts, SEXP counts, int noreduce,
 			{
 				set_character_NAs(VECTOR_ELT(ans, 2));
 			}
-			/* Final 'ans' is 'list(ans_dim, nzindex, nzdata)'. */
+			/* Final 'ans' is 'list(ans_dim, nzcoo, nzdata)'. */
 			SET_VECTOR_ELT(ans, 0, ans_dim);
 		} else {
 			if (h5type->Rtype == LGLSXP)

@@ -230,7 +230,7 @@ setMethod("dimnames", "HDF5ArraySeed",
 
 ### A thin wrapper around h5mread().
 ### TODO: Maybe we no longer need this. I mean, this is used in the
-### extract_array() and OLD_extract_sparse_array() methods for HDF5ArraySeed
+### extract_array() and extract_sparse_array() methods for HDF5ArraySeed
 ### objects but the 'index' passed to these methods should never contain
 ### RangeNSBS objects. So it's probably ok to get rid of this and to just
 ### use h5mread() instead.
@@ -263,7 +263,7 @@ setMethod("extract_array", "HDF5ArraySeed", .extract_array_from_HDF5ArraySeed)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### is_sparse() and OLD_extract_sparse_array()
+### is_sparse(), extract_sparse_array(), and OLD_extract_sparse_array()
 ###
 
 ### Prior to HDF5Array 1.17.8 HDF5ArraySeed objects didn't have the
@@ -284,28 +284,44 @@ setReplaceMethod("is_sparse", "HDF5ArraySeed",
     }
 )
 
-.OLD_extract_sparse_array_from_HDF5ArraySeed <- function(x, index)
+### Returns a COO_SparseArray object.
+### TODO: Modify h5mread() so that it natively constructs and returns
+### an SVT_SparseArray object when 'as.sparse=TRUE'.
+.extract_sparse_array_from_HDF5ArraySeed <- function(x, index)
 {
     if (!is_sparse(x))
-        stop(wmsg("calling OLD_extract_sparse_array() on an HDF5ArraySeed ",
+        stop(wmsg("calling extract_sparse_array() on an HDF5ArraySeed ",
                   "object is supported only if the object is sparse"))
     ## Prior to HDF5Array 1.15.6 HDF5ArraySeed objects didn't have
     ## the "type" slot.
     if (!.hasSlot(x, "type"))
         return(.h5mread2(x@filepath, x@name, index, as.sparse=TRUE))
     ## If the user requested a specific type when HDF5ArraySeed object 'x'
-    ## was constructed then we must return a SparseArraySeed object of
+    ## was constructed then we must return a COO_SparseArray object of
     ## that type.
     as_int <- !is.na(x@type) && x@type == "integer"
+    ## .h5mread2(..., as.sparse=TRUE) returns a COO_SparseArray object.
     ans <- .h5mread2(x@filepath, x@name, index, as.integer=as_int,
                                          as.sparse=TRUE)
-    if (!is.na(x@type) && typeof(ans) != x@type)
-        storage.mode(ans@nzdata) <- x@type
+    if (!is.na(x@type) && type(ans) != x@type)
+        type(ans) <- x@type
     ans
 }
 
+setMethod("extract_sparse_array", "HDF5ArraySeed",
+    function(x, index)
+    {
+        coo <- .extract_sparse_array_from_HDF5ArraySeed(x, index)
+        as(coo, "SVT_SparseArray")
+    }
+)
+
 setMethod("OLD_extract_sparse_array", "HDF5ArraySeed",
-    .OLD_extract_sparse_array_from_HDF5ArraySeed
+    function(x, index)
+    {
+        coo <- .extract_sparse_array_from_HDF5ArraySeed(x, index)
+        SparseArraySeed(coo@dim, coo@nzcoo, coo@nzdata, check=FALSE)
+    }
 )
 
 

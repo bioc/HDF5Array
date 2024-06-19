@@ -83,11 +83,11 @@ test_h5mread_2D <- function()
 
     do_2D_sparse_tests <- function(M, as.integer=FALSE) {
         test_with <- function(starts=NULL) {
-            sas <- h5mread(M@seed@filepath, M@seed@name,
+            coo <- h5mread(M@seed@filepath, M@seed@name,
                            starts=starts,
                            as.integer=as.integer, as.sparse=TRUE)
-            checkTrue(is(sas, "SparseArraySeed"))
-            current <- sparse2dense(sas)
+            checkTrue(is(coo, "COO_SparseArray"))
+            current <- as.array(coo)
             target <- h5mread(M@seed@filepath, M@seed@name,
                               starts=starts, as.integer=as.integer)
             checkIdentical(target, current)
@@ -332,11 +332,11 @@ test_h5mread_3D <- function()
 
     do_3D_sparse_tests <- function(A, as.integer=FALSE) {
         test_with <- function(starts=NULL) {
-            sas <- h5mread(A@seed@filepath, A@seed@name,
+            coo <- h5mread(A@seed@filepath, A@seed@name,
                            starts=starts,
                            as.integer=as.integer, as.sparse=TRUE)
-            checkTrue(is(sas, "SparseArraySeed"))
-            current <- sparse2dense(sas)
+            checkTrue(is(coo, "COO_SparseArray"))
+            current <- as.array(coo)
             target <- h5mread(A@seed@filepath, A@seed@name,
                               starts=starts, as.integer=as.integer)
             checkIdentical(target, current)

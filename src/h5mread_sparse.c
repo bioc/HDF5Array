@@ -15,7 +15,7 @@
 
 
 /* Note that we cap both the length of the 'nzdata' buffer and the number of
-   rows in the 'nzindex' buffer to INT_MAX. This is to prevent 'nzindex' from
+   rows in the 'nzcoo' buffer to INT_MAX. This is to prevent 'nzcoo' from
    growing into a matrix with more than INT_MAX rows, which R does not support
    yet. */
 #define	NZDATA_MAXLENGTH INT_MAX
@@ -63,7 +63,7 @@ static inline void CharAEAE_fast_append(CharAEAE *aeae, CharAE *ae)
 
 
 /****************************************************************************
- * Manipulation of the 'nzindex' and 'nzdata' buffers
+ * Manipulation of the 'nzcoo' and 'nzdata' buffers
  */
 
 static void *new_nzdata_buf(SEXPTYPE Rtype)
@@ -80,23 +80,23 @@ static void *new_nzdata_buf(SEXPTYPE Rtype)
 	return NULL;
 }
 
-static SEXP make_nzindex_from_bufs(const IntAEAE *nzindex_bufs)
+static SEXP make_nzcoo_from_bufs(const IntAEAE *nzcoo_bufs)
 {
-	int ndim = IntAEAE_get_nelt(nzindex_bufs);
-	size_t nzindex_nrow = IntAE_get_nelt(nzindex_bufs->elts[0]);
-	/* 'nzindex_nrow' is guaranteed to be <= INT_MAX (see
+	int ndim = IntAEAE_get_nelt(nzcoo_bufs);
+	size_t nzcoo_nrow = IntAE_get_nelt(nzcoo_bufs->elts[0]);
+	/* 'nzcoo_nrow' is guaranteed to be <= INT_MAX (see
 	   NZDATA_MAXLENGTH above) otherwise earlier calls to
 	   copy_selected_chunk_data_to_nzbufs() (see below) would
 	   have raised an error. */
-	SEXP nzindex = PROTECT(allocMatrix(INTSXP, (int) nzindex_nrow, ndim));
-	int *out_p = INTEGER(nzindex);
+	SEXP nzcoo = PROTECT(allocMatrix(INTSXP, (int) nzcoo_nrow, ndim));
+	int *out_p = INTEGER(nzcoo);
 	for (int along = 0; along < ndim; along++) {
-		memcpy(out_p, nzindex_bufs->elts[along]->elts,
-		       sizeof(int) * nzindex_nrow);
-		out_p += nzindex_nrow;
+		memcpy(out_p, nzcoo_bufs->elts[along]->elts,
+		       sizeof(int) * nzcoo_nrow);
+		out_p += nzcoo_nrow;
 	}
 	UNPROTECT(1);
-	return nzindex;
+	return nzcoo;
 }
 
 static SEXP make_nzdata_from_buf(const void *nzdata_buf, SEXPTYPE Rtype)
@@ -114,13 +114,13 @@ static SEXP make_nzdata_from_buf(const void *nzdata_buf, SEXPTYPE Rtype)
 	return R_NilValue;
 }
 
-static int copy_nzindex_and_nzdata_to_ans(SEXPTYPE Rtype,
-		const IntAEAE *nzindex_bufs, const void *nzdata_buf, SEXP ans)
+static int copy_nzcoo_and_nzdata_to_ans(SEXPTYPE Rtype,
+		const IntAEAE *nzcoo_bufs, const void *nzdata_buf, SEXP ans)
 {
 	SEXP ans_elt;
 
-	/* Move the data in 'nzindex_bufs' to an ordinary matrix. */
-	ans_elt = PROTECT(make_nzindex_from_bufs(nzindex_bufs));
+	/* Move the data in 'nzcoo_bufs' to an ordinary matrix. */
+	ans_elt = PROTECT(make_nzcoo_from_bufs(nzcoo_bufs));
 	SET_VECTOR_ELT(ans, 1, ans_elt);
 	UNPROTECT(1);
 	if (ans_elt == R_NilValue)  /* should never happen */
@@ -139,19 +139,19 @@ static int copy_nzindex_and_nzdata_to_ans(SEXPTYPE Rtype,
  * copy_selected_chunk_data_to_nzbufs()
  */
 
-static inline void append_array_index_to_nzindex_bufs(
+static inline void append_array_index_to_nzcoo_bufs(
 		const H5Viewport *mem_vp,
 		const size_t *inner_midx_buf,
-		IntAEAE *nzindex_bufs)
+		IntAEAE *nzcoo_bufs)
 {
 	/* We don't use IntAEAE_get_nelt() for maximum speed. */
-	int ndim = nzindex_bufs->_nelt;
+	int ndim = nzcoo_bufs->_nelt;
 	for (int along = 0; along < ndim; along++) {
-		IntAE *nzindex_buf = nzindex_bufs->elts[along];
+		IntAE *nzcoo_buf = nzcoo_bufs->elts[along];
 		size_t midx = mem_vp->off[along] + inner_midx_buf[along] + 1;
 		/* In the context of _h5mread_sparse(), 'midx' is guaranteed
 		   to be <= INT_MAX so cast to int is safe. */
-		IntAE_fast_append(nzindex_buf, (int) midx);
+		IntAE_fast_append(nzcoo_buf, (int) midx);
 	}
 	return;
 }
@@ -179,7 +179,7 @@ static inline int CharAEAE_append_if_nonzero(CharAEAE *aeae, const char *s,
 static long long int copy_selected_string_chunk_data_to_CharAEAE_buf(
 		const ChunkIterator *chunk_iter, size_t *inner_midx_buf,
 		const char *in,
-		IntAEAE *nzindex_bufs, CharAEAE *nzdata_buf)
+		IntAEAE *nzcoo_bufs, CharAEAE *nzdata_buf)
 {
 	const H5DSetDescriptor *h5dset = chunk_iter->h5dset;
 	int ndim = h5dset->ndim;
@@ -201,10 +201,10 @@ static long long int copy_selected_string_chunk_data_to_CharAEAE_buf(
 			return -1;
 		}
 		if (ret > 0)
-			append_array_index_to_nzindex_bufs(
+			append_array_index_to_nzcoo_bufs(
 					&chunk_iter->mem_vp,
 					inner_midx_buf,
-					nzindex_bufs);
+					nzcoo_bufs);
 		int inner_moved_along = next_midx(ndim,
 						  chunk_iter->mem_vp.dim,
 						  inner_midx_buf);
@@ -229,7 +229,7 @@ static long long int copy_selected_string_chunk_data_to_CharAEAE_buf(
 #define	ARGS_AND_BODY_OF_COPY_FUNCTION(in_type, nzdatabuf_type)(	 \
 		const ChunkIterator *chunk_iter, size_t *inner_midx_buf, \
 		const in_type *in,					 \
-		IntAEAE *nzindex_bufs, nzdatabuf_type *nzdata_buf)	 \
+		IntAEAE *nzcoo_bufs, nzdatabuf_type *nzdata_buf)	 \
 {									 \
 	const H5DSetDescriptor *h5dset = chunk_iter->h5dset;		 \
 	int ndim = h5dset->ndim;					 \
@@ -252,10 +252,10 @@ static long long int copy_selected_string_chunk_data_to_CharAEAE_buf(
 				}					 \
 				nzdatabuf_type ## _fast_append(		 \
 						nzdata_buf, val);	 \
-				append_array_index_to_nzindex_bufs(	 \
+				append_array_index_to_nzcoo_bufs(	 \
 						&chunk_iter->mem_vp,	 \
 						inner_midx_buf,		 \
-						nzindex_bufs);		 \
+						nzcoo_bufs);		 \
 			}						 \
 			int inner_moved_along = next_midx(ndim,		 \
 						chunk_iter->mem_vp.dim,	 \
@@ -285,10 +285,10 @@ static long long int copy_selected_string_chunk_data_to_CharAEAE_buf(
 				}					 \
 				nzdatabuf_type ## _fast_append(		 \
 						nzdata_buf, val);	 \
-				append_array_index_to_nzindex_bufs(	 \
+				append_array_index_to_nzcoo_bufs(	 \
 						&chunk_iter->mem_vp,	 \
 						inner_midx_buf,		 \
-						nzindex_bufs);		 \
+						nzcoo_bufs);		 \
 			}						 \
 			int inner_moved_along = next_midx(ndim,		 \
 						chunk_iter->mem_vp.dim,	 \
@@ -359,7 +359,7 @@ static int copy_selected_chunk_data_to_nzbufs(
 		const ChunkIterator *chunk_iter,
 		ChunkDataBuffer *chunk_data_buf,
 		size_t *inner_midx_buf,
-		IntAEAE *nzindex_bufs, void *nzdata_buf)
+		IntAEAE *nzcoo_bufs, void *nzdata_buf)
 {
 
 	//clock_t t0;
@@ -373,7 +373,7 @@ static int copy_selected_chunk_data_to_nzbufs(
 			copy_selected_string_chunk_data_to_CharAEAE_buf(
 					chunk_iter, inner_midx_buf,
 					chunk_data_buf->data,
-					nzindex_bufs, nzdata_buf);
+					nzcoo_bufs, nzdata_buf);
 		if (nvals < 0)
 			return -1;
 		//dt = (1.0 * clock() - t0) * 1000.0 / CLOCKS_PER_SEC;
@@ -393,42 +393,42 @@ static int copy_selected_chunk_data_to_nzbufs(
 			nvals = copy_selected_int_chunk_data_to_IntAE_buf(
 					chunk_iter, inner_midx_buf,
 					chunk_data_buf->data,
-					nzindex_bufs, nzdata_buf);
+					nzcoo_bufs, nzdata_buf);
 			break;
 		}
 		if (chunk_data_buf->data_type_id == H5T_NATIVE_CHAR) {
 			nvals = copy_selected_char_chunk_data_to_IntAE_buf(
 					chunk_iter, inner_midx_buf,
 					chunk_data_buf->data,
-					nzindex_bufs, nzdata_buf);
+					nzcoo_bufs, nzdata_buf);
 			break;
 		}
 		if (chunk_data_buf->data_type_id == H5T_NATIVE_SCHAR) {
 			nvals = copy_selected_schar_chunk_data_to_IntAE_buf(
 					chunk_iter, inner_midx_buf,
 					chunk_data_buf->data,
-					nzindex_bufs, nzdata_buf);
+					nzcoo_bufs, nzdata_buf);
 			break;
 		}
 		if (chunk_data_buf->data_type_id == H5T_NATIVE_UCHAR) {
 			nvals = copy_selected_uchar_chunk_data_to_IntAE_buf(
 					chunk_iter, inner_midx_buf,
 					chunk_data_buf->data,
-					nzindex_bufs, nzdata_buf);
+					nzcoo_bufs, nzdata_buf);
 			break;
 		}
 		if (chunk_data_buf->data_type_id == H5T_NATIVE_SHORT) {
 			nvals = copy_selected_short_chunk_data_to_IntAE_buf(
 					chunk_iter, inner_midx_buf,
 					chunk_data_buf->data,
-					nzindex_bufs, nzdata_buf);
+					nzcoo_bufs, nzdata_buf);
 			break;
 		}
 		if (chunk_data_buf->data_type_id == H5T_NATIVE_USHORT) {
 			nvals = copy_selected_ushort_chunk_data_to_IntAE_buf(
 					chunk_iter, inner_midx_buf,
 					chunk_data_buf->data,
-					nzindex_bufs, nzdata_buf);
+					nzcoo_bufs, nzdata_buf);
 			break;
 		}
 		PRINT_TO_ERRMSG_BUF("unsupported dataset type");
@@ -438,91 +438,91 @@ static int copy_selected_chunk_data_to_nzbufs(
 			nvals = copy_selected_double_chunk_data_to_DoubleAE_buf(
 					chunk_iter, inner_midx_buf,
 					chunk_data_buf->data,
-					nzindex_bufs, nzdata_buf);
+					nzcoo_bufs, nzdata_buf);
 			break;
 		}
 		if (chunk_data_buf->data_type_id == H5T_NATIVE_CHAR) {
 			nvals = copy_selected_char_chunk_data_to_DoubleAE_buf(
 					chunk_iter, inner_midx_buf,
 					chunk_data_buf->data,
-					nzindex_bufs, nzdata_buf);
+					nzcoo_bufs, nzdata_buf);
 			break;
 		}
 		if (chunk_data_buf->data_type_id == H5T_NATIVE_SCHAR) {
 			nvals = copy_selected_schar_chunk_data_to_DoubleAE_buf(
 					chunk_iter, inner_midx_buf,
 					chunk_data_buf->data,
-					nzindex_bufs, nzdata_buf);
+					nzcoo_bufs, nzdata_buf);
 			break;
 		}
 		if (chunk_data_buf->data_type_id == H5T_NATIVE_UCHAR) {
 			nvals = copy_selected_uchar_chunk_data_to_DoubleAE_buf(
 					chunk_iter, inner_midx_buf,
 					chunk_data_buf->data,
-					nzindex_bufs, nzdata_buf);
+					nzcoo_bufs, nzdata_buf);
 			break;
 		}
 		if (chunk_data_buf->data_type_id == H5T_NATIVE_SHORT) {
 			nvals = copy_selected_short_chunk_data_to_DoubleAE_buf(
 					chunk_iter, inner_midx_buf,
 					chunk_data_buf->data,
-					nzindex_bufs, nzdata_buf);
+					nzcoo_bufs, nzdata_buf);
 			break;
 		}
 		if (chunk_data_buf->data_type_id == H5T_NATIVE_USHORT) {
 			nvals = copy_selected_ushort_chunk_data_to_DoubleAE_buf(
 					chunk_iter, inner_midx_buf,
 					chunk_data_buf->data,
-					nzindex_bufs, nzdata_buf);
+					nzcoo_bufs, nzdata_buf);
 			break;
 		}
 		if (chunk_data_buf->data_type_id == H5T_NATIVE_INT) {
 			nvals = copy_selected_int_chunk_data_to_DoubleAE_buf(
 					chunk_iter, inner_midx_buf,
 					chunk_data_buf->data,
-					nzindex_bufs, nzdata_buf);
+					nzcoo_bufs, nzdata_buf);
 			break;
 		}
 		if (chunk_data_buf->data_type_id == H5T_NATIVE_UINT) {
 			nvals = copy_selected_uint_chunk_data_to_DoubleAE_buf(
 					chunk_iter, inner_midx_buf,
 					chunk_data_buf->data,
-					nzindex_bufs, nzdata_buf);
+					nzcoo_bufs, nzdata_buf);
 			break;
 		}
 		if (chunk_data_buf->data_type_id == H5T_NATIVE_LONG) {
 			nvals = copy_selected_long_chunk_data_to_DoubleAE_buf(
 					chunk_iter, inner_midx_buf,
 					chunk_data_buf->data,
-					nzindex_bufs, nzdata_buf);
+					nzcoo_bufs, nzdata_buf);
 			break;
 		}
 		if (chunk_data_buf->data_type_id == H5T_NATIVE_ULONG) {
 			nvals = copy_selected_ulong_chunk_data_to_DoubleAE_buf(
 					chunk_iter, inner_midx_buf,
 					chunk_data_buf->data,
-					nzindex_bufs, nzdata_buf);
+					nzcoo_bufs, nzdata_buf);
 			break;
 		}
 		if (chunk_data_buf->data_type_id == H5T_NATIVE_LLONG) {
 			nvals = copy_selected_llong_chunk_data_to_DoubleAE_buf(
 					chunk_iter, inner_midx_buf,
 					chunk_data_buf->data,
-					nzindex_bufs, nzdata_buf);
+					nzcoo_bufs, nzdata_buf);
 			break;
 		}
 		if (chunk_data_buf->data_type_id == H5T_NATIVE_ULLONG) {
 			nvals = copy_selected_ullong_chunk_data_to_DoubleAE_buf(
 					chunk_iter, inner_midx_buf,
 					chunk_data_buf->data,
-					nzindex_bufs, nzdata_buf);
+					nzcoo_bufs, nzdata_buf);
 			break;
 		}
 		if (chunk_data_buf->data_type_id == H5T_NATIVE_FLOAT) {
 			nvals = copy_selected_float_chunk_data_to_DoubleAE_buf(
 					chunk_iter, inner_midx_buf,
 					chunk_data_buf->data,
-					nzindex_bufs, nzdata_buf);
+					nzcoo_bufs, nzdata_buf);
 			break;
 		}
 		PRINT_TO_ERRMSG_BUF("unsupported dataset type");
@@ -532,7 +532,7 @@ static int copy_selected_chunk_data_to_nzbufs(
 			nvals = copy_selected_uchar_chunk_data_to_CharAE_buf(
 					chunk_iter, inner_midx_buf,
 					chunk_data_buf->data,
-					nzindex_bufs, nzdata_buf);
+					nzcoo_bufs, nzdata_buf);
 			break;
 		}
 		PRINT_TO_ERRMSG_BUF("unsupported dataset type");
@@ -560,11 +560,11 @@ static int copy_selected_chunk_data_to_nzbufs(
  *   - Make one call to _read_H5Viewport() to load the **entire** chunk data
  *     to an intermediate buffer.
  *   - Gather the non-zero user-selected data found in the chunk into
- *     'nzindex_bufs' and 'nzdata_buf'.
+ *     'nzcoo_bufs' and 'nzdata_buf'.
  */
 
 static int read_data_7(ChunkIterator *chunk_iter,
-		IntAEAE *nzindex_bufs, void *nzdata_buf)
+		IntAEAE *nzcoo_bufs, void *nzdata_buf)
 {
 	const H5DSetDescriptor *h5dset = chunk_iter->h5dset;
 	int ndim = h5dset->ndim;
@@ -591,7 +591,7 @@ static int read_data_7(ChunkIterator *chunk_iter,
 				chunk_iter,
 				&chunk_data_buf,
 				inner_midx_buf,
-				nzindex_bufs, nzdata_buf);
+				nzcoo_bufs, nzdata_buf);
 		if (ret < 0)
 			break;
 	}
@@ -604,32 +604,32 @@ static int read_data_7(ChunkIterator *chunk_iter,
  * _h5mread_sparse()
  *
  * Implements method 7.
- * Return 'list(NULL, nzindex, nzdata)' or R_NilValue if an error occured.
+ * Return 'list(NULL, nzcoo, nzdata)' or R_NilValue if an error occured.
  */
 
 SEXP _h5mread_sparse(ChunkIterator *chunk_iter, const size_t *ans_dim)
 {
 	const H5DSetDescriptor *h5dset = chunk_iter->h5dset;
 	int ndim = h5dset->ndim;
-	IntAEAE *nzindex_bufs = new_IntAEAE(ndim, ndim);
+	IntAEAE *nzcoo_bufs = new_IntAEAE(ndim, ndim);
 	void *nzdata_buf = new_nzdata_buf(h5dset->h5type->Rtype);
 	if (nzdata_buf == NULL)  /* should never happen */
 		return R_NilValue;
 
-	int ret = read_data_7(chunk_iter, nzindex_bufs, nzdata_buf);
+	int ret = read_data_7(chunk_iter, nzcoo_bufs, nzdata_buf);
 	if (ret < 0)
 		return R_NilValue;
 
 	SEXP ans = PROTECT(NEW_LIST(3));
 	//clock_t t0 = clock();
-	ret = copy_nzindex_and_nzdata_to_ans(h5dset->h5type->Rtype,
-					     nzindex_bufs, nzdata_buf,
-					     ans);
+	ret = copy_nzcoo_and_nzdata_to_ans(h5dset->h5type->Rtype,
+					   nzcoo_bufs, nzdata_buf,
+					   ans);
 	UNPROTECT(1);
 	if (ret < 0)
 		return R_NilValue;
 	//double dt = (1.0 * clock() - t0) / CLOCKS_PER_SEC;
-	//printf("copy_nzindex_and_nzdata_to_ans(): %2.3f s\n", dt);
+	//printf("copy_nzcoo_and_nzdata_to_ans(): %2.3f s\n", dt);
 	return ans;
 }
 

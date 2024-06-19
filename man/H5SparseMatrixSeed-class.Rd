@@ -88,7 +88,8 @@ H5SparseMatrixSeed(filepath, group, subdata=NULL,
 
 \S4method{extract_array}{H5SparseMatrixSeed}(x, index)
 
-\S4method{OLD_extract_sparse_array}{H5SparseMatrixSeed}(x, index)
+\S4method{extract_sparse_array}{CSC_H5SparseMatrixSeed}(x, index)
+\S4method{extract_sparse_array}{CSR_H5SparseMatrixSeed}(x, index)
 
 \S4method{read_sparse_block}{H5SparseMatrixSeed}(x, viewport)
 
@@ -179,10 +180,16 @@ H5SparseMatrixSeed(filepath, group, subdata=NULL,
     \item \code{path()}: Returns the path to the HDF5 file where the sparse
           matrix is located.
     \item \code{dim()}, \code{dimnames()}.
-    \item \code{chunkdim()}, \code{extract_array()},
-          \code{OLD_extract_sparse_array()}, \code{read_sparse_block()},
-          \code{is_sparse()}: These generics are defined and documented
-          in the \pkg{DelayedArray} package.
+    \item \code{extract_array()}, \code{is_sparse()},
+          \code{extract_sparse_array()}, \code{read_sparse_block()},
+          \code{chunkdim()}:
+          These generics are defined and documented in other packages e.g.
+          in \pkg{S4Arrays} for \code{\link[S4Arrays]{extract_array}()}
+          and \code{\link[S4Arrays]{is_sparse}()}, in \pkg{SparseArray}
+          for \code{\link[SparseArray]{extract_sparse_array}()}, and in
+          \pkg{DelayedArray} for
+          \code{\link[DelayedArray]{read_sparse_block}()} and
+          \code{\link[DelayedArray]{chunkdim}()}.
     \item \code{nzcount()}: Returns the number of nonzero values in the
           object.
     \item \code{extractNonzeroDataByCol()}: Works on CSC_H5SparseMatrixSeed

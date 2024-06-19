@@ -18,7 +18,7 @@ License: Artistic-2.0
 Encoding: UTF-8
 Author: Hervé Pagès
 Maintainer: Hervé Pagès <hpages.on.github@gmail.com>
-Depends: R (>= 3.4), methods, SparseArray (>= 1.5.8), DelayedArray (>= 0.27.2),
+Depends: R (>= 3.4), methods, SparseArray (>= 1.5.8), DelayedArray (>= 0.31.2),
 	rhdf5 (>= 2.31.6)
 Imports: utils, stats, tools, Matrix,
 	rhdf5filters, BiocGenerics (>= 0.31.5), S4Vectors, IRanges,
