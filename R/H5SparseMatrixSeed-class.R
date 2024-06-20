@@ -413,7 +413,8 @@ H5SparseMatrixSeed <- function(filepath, group, subdata=NULL,
         w <- x@indptr_ranges[j , "width"]
     }
     ans_dim <- c(nrow(x), ans_ncol)
-    ans_indptr <- c(0L, cumsum(w))
+    ## 'cumsum(as.double(w))' instead of 'cumsum(w)' to avoid integer overflow.
+    ans_indptr <- c(0, cumsum(as.double(w)))
     ans_nzcount <- ans_indptr[[length(ans_indptr)]]
 
     ## DATABLOCKLEN == 0L means no block processing.
