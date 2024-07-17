@@ -210,10 +210,10 @@ read_h5sparse_component <- function(filepath, group, name,
 }
 
 ### The row (or column) indices stored in HDF5 dataset "indices" are 0-based
-### but we return them 1-based.
+### and we return them as such.
 .read_h5sparse_indices <- function(filepath, group, start=NULL, count=NULL)
     read_h5sparse_component(filepath, group, "indices",
-                            start=start, count=count, as.integer=TRUE) + 1L
+                            start=start, count=count, as.integer=TRUE)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -383,7 +383,7 @@ H5SparseMatrixSeed <- function(filepath, group, subdata=NULL,
 ###
 ### Notes:
 ### - SparseArray:::make_SVT_SparseMatrix_from_CSC() will fail if
-###   passed 'data'/'indices' arguments that are long vectors because R
+###   supplied 'data'/'row_indices' arguments are long vectors because R
 ###   does not support passing long vectors to the .Call interface yet!
 ###   So we use a block strategy where we load blocks of adjacent columns
 ###   and convert them to SVT_SparseMatrix objects, then cbind() all the
@@ -512,7 +512,7 @@ setMethod("extract_array", "H5SparseMatrixSeed",
 {
     indptr <- .read_h5sparse_indptr(from@filepath, from@group)
     data <- .read_h5sparse_data(from@filepath, from@group, from@subdata)
-    row_indices <- .read_h5sparse_indices(from@filepath, from@group)
+    row_indices <- .read_h5sparse_indices(from@filepath, from@group) + 1L
     sparseMatrix(i=row_indices, p=indptr, x=data, dims=dim(from),
                  dimnames=dimnames(from))
 }
@@ -528,7 +528,7 @@ setAs("CSC_H5SparseMatrixSeed", "sparseMatrix",
 {
     indptr <- .read_h5sparse_indptr(from@filepath, from@group)
     data <- .read_h5sparse_data(from@filepath, from@group, from@subdata)
-    col_indices <- .read_h5sparse_indices(from@filepath, from@group)
+    col_indices <- .read_h5sparse_indices(from@filepath, from@group) + 1L
     sparseMatrix(j=col_indices, p=indptr, x=data, dims=dim(from),
                  dimnames=dimnames(from))
 }
@@ -634,7 +634,7 @@ setMethod("show", "H5SparseMatrixSeed",
     if (!as.sparse)
         return(relist(ans_nzdata, PartitioningByWidth(count_per_col)))
     row_indices <- .read_h5sparse_indices(x@filepath, x@group,
-                                          start=start, count=count)
+                                          start=start, count=count) + 1L
     col_indices <- rep.int(j12, count_per_col)
     ans_nzindex <- cbind(row_indices, col_indices, deparse.level=0L)
     SparseArraySeed(dim(x), ans_nzindex, ans_nzdata, check=FALSE)
@@ -662,7 +662,7 @@ setMethod("show", "H5SparseMatrixSeed",
     stopifnot(is.null(i) || is.numeric(i), is.numeric(j))
     data_indices <- .get_data_indices_by_col(x, j)
     idx2 <- unlist(data_indices, use.names=FALSE)
-    row_indices <- .read_h5sparse_indices(x@filepath, x@group, start=idx2)
+    row_indices <- .read_h5sparse_indices(x@filepath, x@group, start=idx2) + 1L
     col_indices <- rep.int(j, lengths(data_indices))
     if (!is.null(i)) {
         keep_idx <- which(row_indices %in% i)
@@ -806,7 +806,7 @@ setMethod("read_sparse_block", "H5SparseMatrixSeed",
 ### extractNonzeroDataByCol() and extractNonzeroDataByRow()
 ###
 ### TODO: Deprecate these 2 generics and their methods. These 2 generics are
-### weird and don't have good or strong use cases. I suspect nobody uses them
+### weird and don't have good/strong use cases. I suspect nobody uses them
 ### nor is aware of them.
 ###
 
