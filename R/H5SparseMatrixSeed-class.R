@@ -511,6 +511,10 @@ setMethod("extract_array", "H5SparseMatrixSeed",
 .from_CSC_H5SparseMatrixSeed_to_dgCMatrix <- function(from)
 {
     indptr <- .read_h5sparse_indptr(from@filepath, from@group)
+    nzcount <- indptr[[length(indptr)]]
+    if (nzcount > .Machine$integer.max)
+        stop(wmsg("object to coerce to dgCMatrix must have less ",
+                  "than 2^31 nonzero values"))
     data <- .read_h5sparse_data(from@filepath, from@group, from@subdata)
     row_indices <- .read_h5sparse_indices(from@filepath, from@group) + 1L
     sparseMatrix(i=row_indices, p=indptr, x=data, dims=dim(from),
@@ -527,6 +531,10 @@ setAs("CSC_H5SparseMatrixSeed", "sparseMatrix",
 .from_CSR_H5SparseMatrixSeed_to_dgCMatrix <- function(from)
 {
     indptr <- .read_h5sparse_indptr(from@filepath, from@group)
+    nzcount <- indptr[[length(indptr)]]
+    if (nzcount > .Machine$integer.max)
+        stop(wmsg("object to coerce to dgCMatrix must have less ",
+                  "than 2^31 nonzero values"))
     data <- .read_h5sparse_data(from@filepath, from@group, from@subdata)
     col_indices <- .read_h5sparse_indices(from@filepath, from@group) + 1L
     sparseMatrix(j=col_indices, p=indptr, x=data, dims=dim(from),
