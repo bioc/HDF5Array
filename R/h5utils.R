@@ -6,13 +6,44 @@
 ###
 
 
+### An undocumented feature of rhdf5::H5Fopen(), rhdf5::H5Dopen(), and
+### rhdf5::H5Gopen() is that they won't necessarily throw an error when
+### they fail to open the file, dataset, or group, but they can actually
+### return a FALSE (with a message).
+### The three thin wrappers below detect this situation and throw an error.
+
+.H5Fopen <- function(name, flags=h5default("H5F_ACC_RD"), fapl=NULL)
+{
+    fid <- suppressMessages(rhdf5::H5Fopen(name, flags=flags, fapl=fapl))
+    if (!is(fid, "H5IdComponent"))
+        stop(wmsg("failed to open HDF5 file '", filepath, "'"))
+    fid
+}
+
+.H5Dopen <- function(h5loc, name, dapl=NULL)
+{
+    did <- suppressMessages(rhdf5::H5Dopen(h5loc, name, dapl=dapl))
+    if (!is(did, "H5IdComponent"))
+        stop(wmsg("failed to open HDF5 dataset '", name, "'"))
+    did
+}
+
+.H5Gopen <- function(h5loc, name)
+{
+    gid <- suppressMessages(rhdf5::H5Gopen(h5loc, name))
+    if (!is(gid, "H5IdComponent"))
+        stop(wmsg("failed to open HDF5 group '", name, "'"))
+    gid
+}
+
+
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### h5exists()
 ###
 
 h5exists <- function(filepath, name)
 {
-    fid <- H5Fopen(filepath, flags="H5F_ACC_RDONLY")
+    fid <- .H5Fopen(filepath, flags="H5F_ACC_RDONLY")
     on.exit(H5Fclose(fid))
     H5Lexists(fid, name)
 }
@@ -24,9 +55,9 @@ h5exists <- function(filepath, name)
 
 h5isdataset <- function(filepath, name)
 {
-    fid <- H5Fopen(filepath, flags="H5F_ACC_RDONLY")
+    fid <- .H5Fopen(filepath, flags="H5F_ACC_RDONLY")
     on.exit(H5Fclose(fid))
-    did <- try(H5Dopen(fid, name), silent=TRUE)
+    did <- try(.H5Dopen(fid, name), silent=TRUE)
     ans <- !inherits(did, "try-error")
     if (ans)
         H5Dclose(did)
@@ -35,9 +66,9 @@ h5isdataset <- function(filepath, name)
 
 h5isgroup <- function(filepath, name)
 {
-    fid <- H5Fopen(filepath, flags="H5F_ACC_RDONLY")
+    fid <- .H5Fopen(filepath, flags="H5F_ACC_RDONLY")
     on.exit(H5Fclose(fid))
-    gid <- try(H5Gopen(fid, name), silent=TRUE)
+    gid <- try(.H5Gopen(fid, name), silent=TRUE)
     ans <- !inherits(gid, "try-error")
     if (ans)
         H5Gclose(gid)
@@ -59,12 +90,12 @@ h5isgroup <- function(filepath, name)
     if (is(filepath, "H5File")) {
         fid <- as(filepath, "H5IdComponent")
     } else {
-        fid <- H5Fopen(filepath, flags="H5F_ACC_RDONLY")
+        fid <- .H5Fopen(filepath, flags="H5F_ACC_RDONLY")
         on.exit(H5Fclose(fid))
     }
-    gid <- H5Gopen(fid, group)
+    gid <- .H5Gopen(fid, group)
     on.exit(H5Gclose(gid), add=TRUE)
-    H5Dopen(gid, name)
+    .H5Dopen(gid, name)
 }
 
 dim_as_integer <- function(dim, filepath, name, what="HDF5 dataset")

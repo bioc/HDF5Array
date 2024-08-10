@@ -13,7 +13,7 @@ biocViews: Infrastructure, DataRepresentation, DataImport, Sequencing, RNASeq,
 	Coverage, Annotation, GenomeAnnotation, SingleCell, ImmunoOncology
 URL: https://bioconductor.org/packages/HDF5Array
 BugReports: https://github.com/Bioconductor/HDF5Array/issues
-Version: 1.33.5
+Version: 1.33.6
 License: Artistic-2.0
 Encoding: UTF-8
 Author: Hervé Pagès
@@ -31,8 +31,8 @@ Suggests: BiocParallel, GenomicRanges, SummarizedExperiment (>= 1.15.1),
 Collate: utils.R
 	H5File-class.R
 	h5ls.R
-	H5DSetDescriptor-class.R
 	h5utils.R
+	H5DSetDescriptor-class.R
 	h5dimscales.R
 	uaselection.R
 	h5mread.R

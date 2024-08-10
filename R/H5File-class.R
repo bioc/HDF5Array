@@ -27,7 +27,13 @@
     filepath <- file_path_as_absolute(filepath)
     if (use.rhdf5) {
         flags <- if (readonly) "H5F_ACC_RDONLY" else "H5F_ACC_RDWR"
-        rhdf5::H5Fopen(filepath, flags)@ID
+        fid <- rhdf5::H5Fopen(filepath, flags)
+        ## An undocumented feature of rhdf5::H5Fopen() is that it won't
+        ## necessarily throw an error when it fails to open the file, but
+        ## it can actually return a FALSE.
+        if (!is(fid, "H5IdComponent"))
+            stop(wmsg("failed to open HDF5 file '", filepath, "'"))
+        fid@ID
     } else {
         .Call2("C_h5openlocalfile", filepath, readonly, PACKAGE="HDF5Array")
     }
