@@ -16,7 +16,7 @@
 {
     fid <- suppressMessages(rhdf5::H5Fopen(name, flags=flags, fapl=fapl))
     if (!is(fid, "H5IdComponent"))
-        stop(wmsg("failed to open HDF5 file '", filepath, "'"))
+        stop(wmsg("failed to open HDF5 file '", name, "'"))
     fid
 }
 
