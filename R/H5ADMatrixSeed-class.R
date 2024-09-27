@@ -3,7 +3,10 @@
 ### -------------------------------------------------------------------------
 
 
-setClass("H5ADMatrixSeed", contains="Array", representation("VIRTUAL"))
+setClass("H5ADMatrixSeed",
+    contains=c("Array", "OutOfMemoryObject"),
+    representation("VIRTUAL")
+)
 
 setClass("Dense_H5ADMatrixSeed",
     contains=c("H5ADMatrixSeed", "HDF5ArraySeed"),

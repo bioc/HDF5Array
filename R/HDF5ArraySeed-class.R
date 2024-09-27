@@ -4,7 +4,7 @@
 
 
 setClass("HDF5ArraySeed",
-    contains="Array",
+    contains=c("Array", "OutOfMemoryObject"),
     representation(
       ## ----------------- user supplied slots -----------------
 

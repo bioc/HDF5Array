@@ -4,7 +4,7 @@
 
 
 setClass("H5SparseMatrixSeed",
-    contains="Array",
+    contains=c("Array", "OutOfMemoryObject"),
     representation(
         "VIRTUAL",
 
