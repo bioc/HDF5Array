@@ -56,34 +56,3 @@ setMethod("extractNonzeroDataByCol", "TENxMatrix",
     function(x, j) extractNonzeroDataByCol(x@seed, j)
 )
 
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### Coercion to dgCMatrix
-###
-
-.from_TENxMatrix_to_dgCMatrix <- function(from) as(from@seed, "dgCMatrix")
-setAs("TENxMatrix", "dgCMatrix", .from_TENxMatrix_to_dgCMatrix)
-setAs("TENxMatrix", "sparseMatrix", .from_TENxMatrix_to_dgCMatrix)
-
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### Coercion to SVT_SparseMatrix
-###
-
-### TODO: Replace the 4 specific coercion methods below with 4 more general
-### coercion methods from DelayedArray to [SVT_]SparseArray/Matrix defined
-### in the DelayedArray package. They should simply do 'as(from@seed, to)'
-### if 'from' is pristine i.e. if 'isPristine(from, ignore.dimnames=TRUE)'
-### is TRUE.
-.from_TENxMatrix_to_SVT_SparseMatrix <-
-    function(from) as(from@seed, "SVT_SparseMatrix")
-
-setAs("TENxMatrix", "SVT_SparseMatrix",
-    .from_TENxMatrix_to_SVT_SparseMatrix)
-setAs("TENxMatrix", "SVT_SparseArray",
-    .from_TENxMatrix_to_SVT_SparseMatrix)
-setAs("TENxMatrix", "SparseMatrix",
-    .from_TENxMatrix_to_SVT_SparseMatrix)
-setAs("TENxMatrix", "SparseArray",
-    .from_TENxMatrix_to_SVT_SparseMatrix)
-

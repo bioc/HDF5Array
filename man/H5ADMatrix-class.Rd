@@ -12,13 +12,6 @@
 \alias{extractNonzeroDataByCol,H5ADMatrix-method}
 \alias{extractNonzeroDataByRow,H5ADMatrix-method}
 
-\alias{coerce,H5ADMatrix,dgCMatrix-method}
-\alias{coerce,H5ADMatrix,sparseMatrix-method}
-\alias{coerce,H5ADMatrix,SVT_SparseMatrix-method}
-\alias{coerce,H5ADMatrix,SVT_SparseArray-method}
-\alias{coerce,H5ADMatrix,SparseMatrix-method}
-\alias{coerce,H5ADMatrix,SparseArray-method}
-
 \title{h5ad central matrices (or matrices in the /layers group)
        as DelayedMatrix objects}
 

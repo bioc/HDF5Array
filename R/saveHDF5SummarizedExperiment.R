@@ -117,7 +117,10 @@ restore_absolute_assay2h5_links <- function(assays, dir)
         message("Serialize ", class(x), " object to ",
                 ifelse(file.exists(rds_path), "existing ", ""),
                 "RDS file:\n  ", rds_path)
-    saveRDS(x, file=rds_path)
+    ## Do NOT call the saveRDS() S4 generic defined in the BiocGenerics
+    ## package here because it will dispatch to the saveRDS() method for
+    ## SummarizedExperiment objects which will refuse to serialize 'x'.
+    base::saveRDS(x, file=rds_path)
 }
 
 write_h5_assays <- function(assays, h5_path, chunkdim, level,

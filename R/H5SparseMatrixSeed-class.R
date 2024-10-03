@@ -61,6 +61,7 @@ setClass("CSR_H5SparseMatrixSeed", contains="H5SparseMatrixSeed")
 t.CSC_H5SparseMatrixSeed <- function(x)
 {
     x@dim <- rev(x@dim)
+    x@dimnames <- rev(x@dimnames)
     class(x) <- class(new("CSR_H5SparseMatrixSeed"))
     x
 }
@@ -70,6 +71,7 @@ setMethod("t", "CSC_H5SparseMatrixSeed", t.CSC_H5SparseMatrixSeed)
 t.CSR_H5SparseMatrixSeed <- function(x)
 {
     x@dim <- rev(x@dim)
+    x@dimnames <- rev(x@dimnames)
     class(x) <- class(new("CSC_H5SparseMatrixSeed"))
     x
 }
@@ -501,66 +503,6 @@ setMethod("extract_sparse_array", "CSR_H5SparseMatrixSeed",
 
 setMethod("extract_array", "H5SparseMatrixSeed",
     function(x, index) as.array(extract_sparse_array(x, index))
-)
-
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### Coercion to dgCMatrix
-###
-
-.from_CSC_H5SparseMatrixSeed_to_dgCMatrix <- function(from)
-{
-    indptr <- .read_h5sparse_indptr(from@filepath, from@group)
-    nzcount <- indptr[[length(indptr)]]
-    if (nzcount > .Machine$integer.max)
-        stop(wmsg("object to coerce to dgCMatrix must have less ",
-                  "than 2^31 nonzero values"))
-    data <- .read_h5sparse_data(from@filepath, from@group, from@subdata)
-    row_indices <- .read_h5sparse_indices(from@filepath, from@group) + 1L
-    sparseMatrix(i=row_indices, p=indptr, x=data, dims=dim(from),
-                 dimnames=dimnames(from))
-}
-
-setAs("CSC_H5SparseMatrixSeed", "dgCMatrix",
-    .from_CSC_H5SparseMatrixSeed_to_dgCMatrix
-)
-setAs("CSC_H5SparseMatrixSeed", "sparseMatrix",
-    .from_CSC_H5SparseMatrixSeed_to_dgCMatrix
-)
-
-.from_CSR_H5SparseMatrixSeed_to_dgCMatrix <- function(from)
-{
-    indptr <- .read_h5sparse_indptr(from@filepath, from@group)
-    nzcount <- indptr[[length(indptr)]]
-    if (nzcount > .Machine$integer.max)
-        stop(wmsg("object to coerce to dgCMatrix must have less ",
-                  "than 2^31 nonzero values"))
-    data <- .read_h5sparse_data(from@filepath, from@group, from@subdata)
-    col_indices <- .read_h5sparse_indices(from@filepath, from@group) + 1L
-    sparseMatrix(j=col_indices, p=indptr, x=data, dims=dim(from),
-                 dimnames=dimnames(from))
-}
-
-setAs("CSR_H5SparseMatrixSeed", "dgCMatrix",
-    .from_CSR_H5SparseMatrixSeed_to_dgCMatrix
-)
-setAs("CSR_H5SparseMatrixSeed", "sparseMatrix",
-    .from_CSR_H5SparseMatrixSeed_to_dgCMatrix
-)
-
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### Coercion to SVT_SparseMatrix
-###
-
-.from_CSC_H5SparseMatrixSeed_to_SVT_SparseMatrix <- function(from)
-    S4Arrays:::set_dimnames(.load_CSC_H5SparseMatrixSeed(from), dimnames(from))
-
-setAs("CSC_H5SparseMatrixSeed", "SVT_SparseMatrix",
-    .from_CSC_H5SparseMatrixSeed_to_SVT_SparseMatrix
-)
-setAs("CSC_H5SparseMatrixSeed", "SVT_SparseArray",
-    .from_CSC_H5SparseMatrixSeed_to_SVT_SparseMatrix
 )
 
 

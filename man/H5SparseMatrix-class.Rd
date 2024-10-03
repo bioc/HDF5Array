@@ -12,13 +12,6 @@
 \alias{extractNonzeroDataByCol,H5SparseMatrix-method}
 \alias{extractNonzeroDataByRow,H5SparseMatrix-method}
 
-\alias{coerce,H5SparseMatrix,dgCMatrix-method}
-\alias{coerce,H5SparseMatrix,sparseMatrix-method}
-\alias{coerce,H5SparseMatrix,SVT_SparseMatrix-method}
-\alias{coerce,H5SparseMatrix,SVT_SparseArray-method}
-\alias{coerce,H5SparseMatrix,SparseMatrix-method}
-\alias{coerce,H5SparseMatrix,SparseArray-method}
-
 \title{HDF5 sparse matrices as DelayedMatrix objects}
 
 \description{
