@@ -1,6 +1,7 @@
 Package: HDF5Array
-Title: HDF5 backend for DelayedArray objects
-Description: Implement the HDF5Array, H5SparseMatrix, H5ADMatrix, and
+Title: HDF5 datasets as array-like objects in R
+Description: The HDF5Array package is an HDF5 backend for DelayedArray objects.
+	It implements the HDF5Array, H5SparseMatrix, H5ADMatrix, and
 	TENxMatrix classes, 4 convenient and memory-efficient array-like
 	containers for representing and manipulating either: (1) a conventional
 	(a.k.a. dense) HDF5 dataset, (2) an HDF5 sparse matrix (stored in
