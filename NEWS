@@ -1,3 +1,35 @@
+CHANGES IN VERSION 1.34.0
+-------------------------
+
+NEW FEATURES
+
+    o Add 'as.vector' argument to h5mread().
+
+SIGNIFICANT USER-VISIBLE CHANGES
+
+    o Improvements to coercions from CSC_H5SparseMatrixSeed, H5SparseMatrix,
+      TENxMatrix, or H5ADMatrix to SparseArray:
+      - should be significantly more efficient, thanks to various tweaks that
+        happened in the SparseArray and Delayed5Array packages;
+      - support coercing an object with more than 2^31 nonzero values.
+
+    o Coercion from any of the class above to a sparseMatrix derivative
+      now fails early if object to coerce has >= 2^31 nonzero values.
+
+    o All *Seed classes in the package now extend the new OutOfMemoryObject
+      class defined in BiocGenerics (virtual class with no slots).
+
+BUG FIXES
+
+    o Fix long standing bug in t() methods for CSC_H5SparseMatrixSeed and
+      CSR_H5SparseMatrixSeed objects.
+
+    o Replace internal calls to rhdf5::H5Fopen(), rhdf5::H5Dopen(), and
+      rhdf5::H5Gopen(), with calls to new internal helpers .H5Fopen(),
+      .H5Dopen(), and .H5Gopen(), respectively.
+      See commit 31a7e06 for more information.
+
+
 CHANGES IN VERSION 1.32.0
 -------------------------
 
