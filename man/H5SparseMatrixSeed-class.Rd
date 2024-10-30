@@ -34,8 +34,6 @@
 \alias{show,H5SparseMatrixSeed-method}
 
 % OLD STUFF
-\alias{OLD_extract_sparse_array,H5SparseMatrixSeed-method}
-\alias{read_sparse_block,H5SparseMatrixSeed-method}
 \alias{extractNonzeroDataByCol}
 \alias{extractNonzeroDataByCol,CSC_H5SparseMatrixSeed-method}
 \alias{extractNonzeroDataByRow}
@@ -84,8 +82,6 @@ H5SparseMatrixSeed(filepath, group, subdata=NULL,
 \S4method{extract_sparse_array}{CSC_H5SparseMatrixSeed}(x, index)
 \S4method{extract_sparse_array}{CSR_H5SparseMatrixSeed}(x, index)
 
-\S4method{read_sparse_block}{H5SparseMatrixSeed}(x, viewport)
-
 \S4method{extractNonzeroDataByCol}{CSC_H5SparseMatrixSeed}(x, j)
 \S4method{extractNonzeroDataByRow}{CSR_H5SparseMatrixSeed}(x, i)
 
@@ -117,10 +113,6 @@ H5SparseMatrixSeed(filepath, group, subdata=NULL,
   }
   \item{index}{
     See \code{?\link[S4Arrays]{extract_array}} in the \pkg{S4Arrays}
-    package.
-  }
-  \item{viewport}{
-    See \code{?\link[S4Arrays]{read_block}} in the \pkg{S4Arrays}
     package.
   }
   \item{j}{
@@ -174,15 +166,12 @@ H5SparseMatrixSeed(filepath, group, subdata=NULL,
           matrix is located.
     \item \code{dim()}, \code{dimnames()}.
     \item \code{extract_array()}, \code{is_sparse()},
-          \code{extract_sparse_array()}, \code{read_sparse_block()},
-          \code{chunkdim()}:
+          \code{extract_sparse_array()}, \code{chunkdim()}:
           These generics are defined and documented in other packages e.g.
           in \pkg{S4Arrays} for \code{\link[S4Arrays]{extract_array}()}
           and \code{\link[S4Arrays]{is_sparse}()}, in \pkg{SparseArray}
           for \code{\link[SparseArray]{extract_sparse_array}()}, and in
-          \pkg{DelayedArray} for
-          \code{\link[DelayedArray]{read_sparse_block}()} and
-          \code{\link[DelayedArray]{chunkdim}()}.
+          \pkg{DelayedArray} for \code{\link[DelayedArray]{chunkdim}()}.
     \item \code{nzcount()}: Returns the number of nonzero values in the
           object.
     \item \code{extractNonzeroDataByCol()}: Works on CSC_H5SparseMatrixSeed

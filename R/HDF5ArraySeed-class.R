@@ -263,7 +263,7 @@ setMethod("extract_array", "HDF5ArraySeed", .extract_array_from_HDF5ArraySeed)
 
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### is_sparse(), extract_sparse_array(), and OLD_extract_sparse_array()
+### is_sparse() and extract_sparse_array() methods
 ###
 
 ### Prior to HDF5Array 1.17.8 HDF5ArraySeed objects didn't have the
@@ -313,14 +313,6 @@ setMethod("extract_sparse_array", "HDF5ArraySeed",
     {
         coo <- .extract_sparse_array_from_HDF5ArraySeed(x, index)
         as(coo, "SVT_SparseArray")
-    }
-)
-
-setMethod("OLD_extract_sparse_array", "HDF5ArraySeed",
-    function(x, index)
-    {
-        coo <- .extract_sparse_array_from_HDF5ArraySeed(x, index)
-        SparseArraySeed(coo@dim, coo@nzcoo, coo@nzdata, check=FALSE)
     }
 )
 

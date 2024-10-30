@@ -8,7 +8,6 @@
 \alias{DelayedArray,H5SparseMatrixSeed-method}
 
 \alias{nzcount,H5SparseMatrix-method}
-\alias{read_sparse_block,H5SparseMatrix-method}
 \alias{extractNonzeroDataByCol,H5SparseMatrix-method}
 \alias{extractNonzeroDataByRow,H5SparseMatrix-method}
 

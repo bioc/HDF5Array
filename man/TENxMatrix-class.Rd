@@ -8,7 +8,6 @@
 \alias{DelayedArray,TENxMatrixSeed-method}
 
 \alias{nzcount,TENxMatrix-method}
-\alias{read_sparse_block,TENxMatrix-method}
 \alias{extractNonzeroDataByCol,TENxMatrix-method}
 
 \title{10x Genomics datasets as DelayedMatrix objects}

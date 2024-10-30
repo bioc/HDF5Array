@@ -521,17 +521,12 @@ setMethod("show", "H5SparseMatrixSeed",
 )
 
 
-### -------------------------------------------------------------------------
-### OLD STUFF. To be deprecated soon!
-### -------------------------------------------------------------------------
-
-
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### .get_data_indices_by_col()
+### extractNonzeroDataByCol() and extractNonzeroDataByRow()
 ###
-### Used by .load_sparse_data(), extractNonzeroDataByCol(), and
-### extractNonzeroDataByRow() defined below in this file.
-###
+### TODO: Deprecate these 2 generics and their methods. These 2 generics are
+### weird and don't have good/strong use cases. I suspect nobody uses them
+### nor is aware of them.
 
 ### base::sequence() does not properly handle a 'from' that is >
 ### .Machine$integer.max so we implement a variant that does. Note that
@@ -560,20 +555,11 @@ setMethod("show", "H5SparseMatrixSeed",
     relist(idx2, PartitioningByWidth(width2))
 }
 
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### .extract_data_from_adjacent_cols()
-###
-### Used by .load_sparse_data(), extractNonzeroDataByCol(), and
-### extractNonzeroDataByRow() defined below in this file.
-###
-
 ### 'j1' and 'j2' must be 2 single integers representing a valid range of
 ### col indices.
-### If 'as.sparse=FALSE', returns a NumericList or IntegerList object parallel
+### Returns a NumericList or IntegerList object parallel
 ### to 'j1:j2' i.e. with one list element per col index in 'j1:j2'.
-### If 'as.sparse=TRUE', returns a SparseArraySeed object.
-.extract_data_from_adjacent_cols <- function(x, j1, j2, as.sparse=FALSE)
+.extract_data_from_adjacent_cols <- function(x, j1, j2)
 {
     j12 <- j1:j2
     start <- x@indptr_ranges[j1, "start"]
@@ -581,69 +567,7 @@ setMethod("show", "H5SparseMatrixSeed",
     count <- sum(count_per_col)
     ans_nzdata <- .read_h5sparse_data(x@filepath, x@group, x@subdata,
                                       start=start, count=count)
-    if (!as.sparse)
-        return(relist(ans_nzdata, PartitioningByWidth(count_per_col)))
-    row_indices <- .read_h5sparse_indices(x@filepath, x@group,
-                                          start=start, count=count) + 1L
-    col_indices <- rep.int(j12, count_per_col)
-    ans_nzindex <- cbind(row_indices, col_indices, deparse.level=0L)
-    SparseArraySeed(dim(x), ans_nzindex, ans_nzdata, check=FALSE)
-}
-
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### .load_sparse_data()
-###
-### Used by the OLD_extract_sparse_array() and read_sparse_block() methods
-### for H5SparseMatrixSeed objects defined below in this file.
-###
-
-### Loads sparse data using the "random" method.
-### This method is based on h5mread( , starts=list(start)) which retrieves
-### an arbitrary/random subset of the data.
-### 'i' must be NULL or an integer vector containing valid row indices.
-### 'j' must be an integer vector containing valid col indices. It cannot
-### be NULL.
-### Both 'i' and 'j' can contain duplicates. Duplicates in 'i' have no effect
-### on the output but duplicates in 'j' will produce duplicates in the output.
-### Returns a SparseArraySeed object.
-.load_random_csc_sparse_data <- function(x, i, j)
-{
-    stopifnot(is.null(i) || is.numeric(i), is.numeric(j))
-    data_indices <- .get_data_indices_by_col(x, j)
-    idx2 <- unlist(data_indices, use.names=FALSE)
-    row_indices <- .read_h5sparse_indices(x@filepath, x@group, start=idx2) + 1L
-    col_indices <- rep.int(j, lengths(data_indices))
-    if (!is.null(i)) {
-        keep_idx <- which(row_indices %in% i)
-        idx2 <- idx2[keep_idx]
-        row_indices <- row_indices[keep_idx]
-        col_indices <- col_indices[keep_idx]
-    }
-    ans_nzindex <- cbind(row_indices, col_indices, deparse.level=0L)
-    ans_nzdata <- .read_h5sparse_data(x@filepath, x@group, x@subdata,
-                                      start=idx2)
-    SparseArraySeed(dim(x), ans_nzindex, ans_nzdata, check=FALSE)
-}
-
-### Loads sparse data using the "linear" method.
-### This method is based on h5mread( , starts=list(start), counts=list(count))
-### which retrieves a linear subset of the data and should be more efficient
-### than doing h5mread( , starts=list(seq(start, length.out=count))).
-### 'j' must be NULL or a non-empty integer vector containing valid
-### col indices. The output is not affected by duplicates in 'j'.
-### Returns a SparseArraySeed object.
-.load_linear_csc_sparse_data <- function(x, j)
-{
-    if (is.null(j)) {
-        j1 <- 1L
-        j2 <- ncol(x)
-    } else {
-        stopifnot(is.numeric(j), length(j) != 0L)
-        j1 <- min(j)
-        j2 <- max(j)
-    }
-    .extract_data_from_adjacent_cols(x, j1, j2, as.sparse=TRUE)
+    relist(ans_nzdata, PartitioningByWidth(count_per_col))
 }
 
 .normarg_method <- function(method, j)
@@ -667,98 +591,6 @@ setMethod("show", "H5SparseMatrixSeed",
     ratio <- length(j) / (j2 - j1 + 1L)
     if (ratio >= 0.2) "linear" else "random"
 }
-
-### Duplicates in 'index[[1]]' are ok and won't affect the output.
-### Duplicates in 'index[[2]]' are ok but might introduce duplicates
-### in the output so should be avoided.
-### Returns a SparseArraySeed object.
-.load_csc_sparse_data <- function(x, index, method)
-{
-    i <- index[[1L]]
-    j <- index[[2L]]
-    method <- .normarg_method(method, j)
-    if (method == "random") {
-        ans <- .load_random_csc_sparse_data(x, i, j)
-    } else {
-        ans <- .load_linear_csc_sparse_data(x, j)
-    }
-    ans
-}
-
-### Returns a SparseArraySeed object.
-setGeneric(".load_sparse_data", signature="x",
-    function(x, index, method=c("auto", "random", "linear"))
-        standardGeneric(".load_sparse_data")
-)
-
-setMethod(".load_sparse_data", "CSC_H5SparseMatrixSeed",
-    function(x, index, method=c("auto", "random", "linear"))
-    {
-        method <- match.arg(method)
-        .load_csc_sparse_data(x, index, method)
-    }
-)
-
-setMethod(".load_sparse_data", "CSR_H5SparseMatrixSeed",
-    function(x, index, method=c("auto", "random", "linear"))
-    {
-        method <- match.arg(method)
-        t(.load_csc_sparse_data(t(x), rev(index), method))
-    }
-)
-
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### OLD_extract_sparse_array() and read_sparse_block() methods
-###
-### TODO: Deprecate this stuff.
-###
-
-.OLD_extract_sparse_array_from_H5SparseMatrixSeed <- function(x, index)
-{
-    sas <- .load_sparse_data(x, index)  # I/O
-    OLD_extract_sparse_array(sas, index)  # in-memory
-}
-
-setMethod("OLD_extract_sparse_array", "H5SparseMatrixSeed",
-    .OLD_extract_sparse_array_from_H5SparseMatrixSeed
-)
-
-### The default read_sparse_block() method defined in DelayedArray would
-### work just fine on an H5SparseMatrixSeed derivative (thanks to the
-### OLD_extract_sparse_array() method for H5SparseMatrixSeed objects defined
-### above), but we overwrite it with the method below which should be
-### slightly more efficient. That's because the method below calls
-### read_sparse_block() on the SparseArraySeed object returned by
-### .load_sparse_data(), and this should be faster than calling
-### OLD_extract_sparse_array() on the same object (which is what the
-### OLD_extract_sparse_array() method for H5SparseMatrixSeed objects would
-### be doing when called by the default read_sparse_block() method).
-### Not sure the difference is actually significant enough for this extra
-### method to be worth it though, because time is really dominated by I/O
-### here, that is, by the call to .load_sparse_data().
-.read_sparse_block_from_H5SparseMatrixSeed <- function(x, viewport)
-{
-    index <- makeNindexFromArrayViewport(viewport, expand.RangeNSBS=TRUE)
-    sas <- .load_sparse_data(x, index)  # I/O
-    ## Unlike the OLD_extract_sparse_array() method for H5SparseMatrixSeed
-    ## objects defined above, we use read_sparse_block() here, which should
-    ## be faster than using OLD_extract_sparse_array().
-    read_sparse_block(sas, viewport)  # in-memory
-}
-
-setMethod("read_sparse_block", "H5SparseMatrixSeed",
-    .read_sparse_block_from_H5SparseMatrixSeed
-)
-
-
-### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-### extractNonzeroDataByCol() and extractNonzeroDataByRow()
-###
-### TODO: Deprecate these 2 generics and their methods. These 2 generics are
-### weird and don't have good/strong use cases. I suspect nobody uses them
-### nor is aware of them.
-###
 
 ### Extract nonzero data using the "random" method.
 ### This method is based on h5mread( , starts=list(start)) which retrieves

@@ -14,7 +14,6 @@
 \alias{is_sparse,HDF5ArraySeed-method}
 \alias{is_sparse<-,HDF5ArraySeed-method}
 \alias{extract_sparse_array,HDF5ArraySeed-method}
-\alias{OLD_extract_sparse_array,HDF5ArraySeed-method}
 \alias{chunkdim,HDF5ArraySeed-method}
 
 \alias{updateObject,HDF5ArraySeed-method}

@@ -42,10 +42,6 @@ H5ADMatrix <- function(filepath, layer=NULL)
 ### if it's a CSC_H5ADMatrixSeed or CSR_H5ADMatrixSeed object.
 setMethod("nzcount", "H5ADMatrix", function(x) nzcount(x@seed))
 
-setMethod("read_sparse_block", "H5ADMatrix",
-    function(x, viewport) read_sparse_block(x@seed, viewport)
-)
-
 ### Will work only if the seed is a CSC_H5ADMatrixSeed object.
 setMethod("extractNonzeroDataByCol", "H5ADMatrix",
     function(x, j) extractNonzeroDataByCol(x@seed, j)

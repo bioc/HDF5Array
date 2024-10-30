@@ -48,10 +48,6 @@ TENxMatrix <- function(filepath, group="matrix")
 
 setMethod("nzcount", "TENxMatrix", function(x) nzcount(x@seed))
 
-setMethod("read_sparse_block", "TENxMatrix",
-    function(x, viewport) read_sparse_block(x@seed, viewport)
-)
-
 setMethod("extractNonzeroDataByCol", "TENxMatrix",
     function(x, j) extractNonzeroDataByCol(x@seed, j)
 )

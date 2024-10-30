@@ -40,10 +40,6 @@ H5SparseMatrix <- function(filepath, group)
 
 setMethod("nzcount", "H5SparseMatrix", function(x) nzcount(x@seed))
 
-setMethod("read_sparse_block", "H5SparseMatrix",
-    function(x, viewport) read_sparse_block(x@seed, viewport)
-)
-
 setMethod("extractNonzeroDataByCol", "H5SparseMatrix",
     function(x, j) extractNonzeroDataByCol(x@seed, j)
 )
