@@ -376,16 +376,16 @@ H5SparseMatrixSeed <- function(filepath, group, subdata=NULL,
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### .load_CSC_H5SparseMatrixSeed
 ###
-### Loads CSC_H5SparseMatrixSeed object 'x' into memory as a SVT_SparseMatrix
-### object, or selected columns only.
+### Loads whole CSC_H5SparseMatrixSeed object 'x' into memory as an
+### SVT_SparseMatrix object, or only selected columns if 'j' is specified.
 ### This is the workhorse behind the extract_sparse_array(), extract_array(),
 ### and read_block_as_sparse() methods for H5SparseMatrixSeed objects, as
 ### well as behind coercion from CSC_H5SparseMatrixSeed to SVT_SparseMatrix.
 ### Does NOT propagate the dimnames.
 ###
 ### Notes:
-### - SparseArray:::make_SVT_SparseMatrix_from_CSC() will fail if
-###   supplied 'data'/'row_indices' arguments are long vectors because R
+### - SparseArray:::make_SVT_SparseMatrix_from_CSC() will fail if passed
+###   long vectors via its 'data' and/or 'row_indices' arguments because R
 ###   does not support passing long vectors to the .Call interface yet!
 ###   So we use a block strategy where we load blocks of adjacent columns
 ###   and convert them to SVT_SparseMatrix objects, then cbind() all the
